@@ -8,6 +8,9 @@ from tqdm import tqdm
 import logging
 import tarfile
 import zipfile
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 _api_endpoint = "https://users.deepcell.org/api/getData/"

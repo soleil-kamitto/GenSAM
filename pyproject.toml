@@ -19,6 +19,7 @@ dependencies = [
     # Model access
     'requests',
     'tqdm',
+    'python-dotenv',
     # Whole-slide imaging
     'dask[distributed]',
     'dask-image',

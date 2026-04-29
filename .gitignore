@@ -14,3 +14,6 @@ paper_evaluation/summary.csv
 
 # Editor cruft
 *.swp
+
+# Secrets
+.env
