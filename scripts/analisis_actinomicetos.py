@@ -1,13 +1,16 @@
 """
-Análisis de Actinomyces israelii con CellSAM.
-Compara resultados con E. coli para ver diferencias morfológicas.
+Análisis de actinomicetos con CellSAM.
+Uso: python scripts/analisis_actinomicetos.py <ruta_imagen>
+Ejemplo: python scripts/analisis_actinomicetos.py images/mi_imagen.tif
 """
 
+import sys
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
+from pathlib import Path
 from skimage.io import imread
 from skimage.color import rgb2gray
 from skimage.measure import regionprops
@@ -15,9 +18,10 @@ from skimage.segmentation import find_boundaries
 
 from cellSAM import get_model, segment_cellular_image
 
-# ── 1. CARGAR IMAGEN ──────────────────────────────────────────────────────────
-print("\n[1] Cargando imagen Actinomyces israelii...")
-img_raw = imread("images/Actinomyces.israeli_0020.tif")
+img_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("images/Actinomyces.israeli_0020.tif")
+
+print(f"\n[1] Cargando imagen {img_path.name}...")
+img_raw = imread(str(img_path))
 print(f"    Shape original: {img_raw.shape}, dtype: {img_raw.dtype}")
 
 if img_raw.ndim == 3:
@@ -66,8 +70,9 @@ print("    " + "-"*57)
 for col in ["area_px", "perimetro_px", "excentricidad", "solidez", "diametro_equiv"]:
     print(f"    {col:<25} {df[col].mean():>10.2f} {df[col].min():>10.2f} {df[col].max():>10.2f}")
 
-df.to_csv("resultados/bacterias/actinomicetos/resultados_actinomicetos.csv", index=False)
-print(f"\n    CSV: resultados/bacterias/actinomicetos/resultados_actinomicetos.csv")
+nombre = img_path.stem
+df.to_csv(f"resultados/bacterias/actinomicetos/resultados_{nombre}.csv", index=False)
+print(f"\n    CSV: resultados/bacterias/actinomicetos/resultados_{nombre}.csv")
 
 # ── 5. ANÁLISIS COMPLETO ──────────────────────────────────────────────────────
 print("\n[6] Generando analisis_actinomicetos_completo.png...")
@@ -114,8 +119,8 @@ axes[1, 2].set_ylabel("Excentricidad")
 axes[1, 2].set_title("Forma vs Tamaño (color=solidez)")
 
 plt.tight_layout()
-plt.savefig("resultados/bacterias/actinomicetos/analisis_actinomicetos_completo.png", dpi=150, bbox_inches="tight")
-print("    Guardado: resultados/bacterias/actinomicetos/analisis_actinomicetos_completo.png")
+plt.savefig(f"resultados/bacterias/actinomicetos/analisis_{nombre}.png", dpi=150, bbox_inches="tight")
+print(f"    Guardado: resultados/bacterias/actinomicetos/analisis_{nombre}.png")
 
 # ── 6. COMPARACIÓN POSTPROCESAMIENTO ──────────────────────────────────────────
 print("\n[7] Generando comparacion_actinomicetos_postprocesamiento.png...")
@@ -135,8 +140,8 @@ axes2[2].set_title(f"Con postprocesamiento ({n_post} objetos)")
 axes2[2].axis("off")
 
 plt.tight_layout()
-plt.savefig("resultados/bacterias/actinomicetos/comparacion_actinomicetos_postprocesamiento.png", dpi=150)
-print("    Guardado: resultados/bacterias/actinomicetos/comparacion_actinomicetos_postprocesamiento.png")
+plt.savefig(f"resultados/bacterias/actinomicetos/comparacion_{nombre}_postprocesamiento.png", dpi=150)
+print(f"    Guardado: resultados/bacterias/actinomicetos/comparacion_{nombre}_postprocesamiento.png")
 
 # ── RESUMEN COMPARATIVO ───────────────────────────────────────────────────────
 print("\n" + "="*60)
