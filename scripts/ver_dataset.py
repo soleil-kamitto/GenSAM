@@ -54,6 +54,6 @@ for i, ax in enumerate(axes):
     ax.axis("off")
 
 plt.tight_layout()
-output = f"dataset_{dataset_name}_{split}.png"
+output = f"resultados/dataset/dataset_{dataset_name}_{split}.png"
 plt.savefig(output, dpi=120, bbox_inches="tight")
 print(f"Guardado: {output}")

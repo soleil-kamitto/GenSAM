@@ -82,8 +82,8 @@ print("    " + "-"*57)
 for col in ["area_px", "perimetro_px", "excentricidad", "solidez", "diametro_equiv"]:
     print(f"    {col:<25} {df[col].mean():>10.2f} {df[col].min():>10.2f} {df[col].max():>10.2f}")
 
-df.to_csv("resultados_ecoli.csv", index=False)
-print(f"\n    CSV guardado: resultados_ecoli.csv")
+df.to_csv("resultados/bacterias/ecoli/resultados_ecoli.csv", index=False)
+print(f"\n    CSV guardado: resultados/bacterias/ecoli/resultados_ecoli.csv")
 
 # ── 6. ANÁLISIS COMPLETO (6 paneles) ─────────────────────────────────────────
 print("\n[6] Generando analisis_ecoli_completo.png...")
@@ -131,8 +131,8 @@ axes[1, 2].set_ylabel("Excentricidad (0=círculo, 1=alargada)")
 axes[1, 2].set_title("Forma vs Tamaño")
 
 plt.tight_layout()
-plt.savefig("analisis_ecoli_completo.png", dpi=150, bbox_inches="tight")
-print("    Guardado: analisis_ecoli_completo.png")
+plt.savefig("resultados/bacterias/ecoli/analisis_ecoli_completo.png", dpi=150, bbox_inches="tight")
+print("    Guardado: resultados/bacterias/ecoli/analisis_ecoli_completo.png")
 
 # ── 7. COMPARACIÓN POSTPROCESAMIENTO ──────────────────────────────────────────
 print("\n[7] Generando comparacion_ecoli_postprocesamiento.png...")
@@ -152,8 +152,8 @@ axes2[2].set_title(f"Con postprocesamiento ({n_post} bacterias)")
 axes2[2].axis("off")
 
 plt.tight_layout()
-plt.savefig("comparacion_ecoli_postprocesamiento.png", dpi=150)
-print("    Guardado: comparacion_ecoli_postprocesamiento.png")
+plt.savefig("resultados/bacterias/ecoli/comparacion_ecoli_postprocesamiento.png", dpi=150)
+print("    Guardado: resultados/bacterias/ecoli/comparacion_ecoli_postprocesamiento.png")
 
 # ── RESUMEN ───────────────────────────────────────────────────────────────────
 print("\n" + "="*50)

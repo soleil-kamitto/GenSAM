@@ -50,5 +50,5 @@ axes[2].set_title(f"CellSAM predijo ({n_pred} células)")
 axes[2].axis("off")
 
 plt.tight_layout()
-plt.savefig("resultado_ecoli.png", dpi=150)
-print("\nGuardado: resultado_ecoli.png")
+plt.savefig("resultados/bacterias/ecoli/resultado_ecoli.png", dpi=150)
+print("\nGuardado: resultados/bacterias/ecoli/resultado_ecoli.png")

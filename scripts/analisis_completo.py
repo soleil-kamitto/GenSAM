@@ -88,7 +88,7 @@ for col in ["area_px", "perimetro_px", "excentricidad", "solidez", "diametro_equ
     print(f"    {col:<25} {df[col].mean():>10.2f} {df[col].min():>10.2f} {df[col].max():>10.2f}")
 
 # ── 6. EXPORTAR A CSV ─────────────────────────────────────────────────────────
-csv_path = "resultados_celulas.csv"
+csv_path = "resultados/celulas/resultados_celulas.csv"
 df.to_csv(csv_path, index=False)
 print(f"\n[6] Métricas exportadas a: {csv_path}")
 
@@ -148,8 +148,8 @@ axes[1, 2].set_ylabel("Excentricidad (0=círculo, 1=alargada)")
 axes[1, 2].set_title("Forma vs Tamaño")
 
 plt.tight_layout()
-plt.savefig("analisis_completo.png", dpi=150, bbox_inches="tight")
-print("    Guardado: analisis_completo.png")
+plt.savefig("resultados/celulas/analisis_completo.png", dpi=150, bbox_inches="tight")
+print("    Guardado: resultados/celulas/analisis_completo.png")
 
 # ── 8. COMPARACIÓN CON/SIN POSTPROCESAMIENTO ─────────────────────────────────
 fig2, axes2 = plt.subplots(1, 2, figsize=(12, 5))
@@ -164,8 +164,8 @@ axes2[1].set_title(f"Con postprocesamiento ({n_cells_post} células)")
 axes2[1].axis("off")
 
 plt.tight_layout()
-plt.savefig("comparacion_postprocesamiento.png", dpi=150)
-print("    Guardado: comparacion_postprocesamiento.png")
+plt.savefig("resultados/celulas/comparacion_postprocesamiento.png", dpi=150)
+print("    Guardado: resultados/celulas/comparacion_postprocesamiento.png")
 
 print("\n" + "=" * 50)
 print("RESUMEN FINAL")
@@ -176,6 +176,6 @@ print(f"  Diámetro equivalente med:  {df['diametro_equiv'].mean():.1f} px")
 print(f"  Excentricidad media:       {df['excentricidad'].mean():.3f}  (0=círculo)")
 print(f"  Solidez media:             {df['solidez'].mean():.3f}  (1=sin huecos)")
 print(f"  Archivos generados:")
-print(f"    - analisis_completo.png")
-print(f"    - comparacion_postprocesamiento.png")
-print(f"    - resultados_celulas.csv")
+print(f"    - resultados/celulas/analisis_completo.png")
+print(f"    - resultados/celulas/comparacion_postprocesamiento.png")
+print(f"    - resultados/celulas/resultados_celulas.csv")

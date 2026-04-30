@@ -66,8 +66,8 @@ print("    " + "-"*57)
 for col in ["area_px", "perimetro_px", "excentricidad", "solidez", "diametro_equiv"]:
     print(f"    {col:<25} {df[col].mean():>10.2f} {df[col].min():>10.2f} {df[col].max():>10.2f}")
 
-df.to_csv("resultados_actinomicetos.csv", index=False)
-print(f"\n    CSV: resultados_actinomicetos.csv")
+df.to_csv("resultados/bacterias/actinomicetos/resultados_actinomicetos.csv", index=False)
+print(f"\n    CSV: resultados/bacterias/actinomicetos/resultados_actinomicetos.csv")
 
 # ── 5. ANÁLISIS COMPLETO ──────────────────────────────────────────────────────
 print("\n[6] Generando analisis_actinomicetos_completo.png...")
@@ -114,8 +114,8 @@ axes[1, 2].set_ylabel("Excentricidad")
 axes[1, 2].set_title("Forma vs Tamaño (color=solidez)")
 
 plt.tight_layout()
-plt.savefig("analisis_actinomicetos_completo.png", dpi=150, bbox_inches="tight")
-print("    Guardado: analisis_actinomicetos_completo.png")
+plt.savefig("resultados/bacterias/actinomicetos/analisis_actinomicetos_completo.png", dpi=150, bbox_inches="tight")
+print("    Guardado: resultados/bacterias/actinomicetos/analisis_actinomicetos_completo.png")
 
 # ── 6. COMPARACIÓN POSTPROCESAMIENTO ──────────────────────────────────────────
 print("\n[7] Generando comparacion_actinomicetos_postprocesamiento.png...")
@@ -135,8 +135,8 @@ axes2[2].set_title(f"Con postprocesamiento ({n_post} objetos)")
 axes2[2].axis("off")
 
 plt.tight_layout()
-plt.savefig("comparacion_actinomicetos_postprocesamiento.png", dpi=150)
-print("    Guardado: comparacion_actinomicetos_postprocesamiento.png")
+plt.savefig("resultados/bacterias/actinomicetos/comparacion_actinomicetos_postprocesamiento.png", dpi=150)
+print("    Guardado: resultados/bacterias/actinomicetos/comparacion_actinomicetos_postprocesamiento.png")
 
 # ── RESUMEN COMPARATIVO ───────────────────────────────────────────────────────
 print("\n" + "="*60)

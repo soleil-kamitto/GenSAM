@@ -47,8 +47,8 @@ def main():
     axes[1].axis("off")
 
     plt.tight_layout()
-    plt.savefig("resultado_segmentacion.png", dpi=150)
-    print("   Guardado: resultado_segmentacion.png")
+    plt.savefig("resultados/celulas/resultado_segmentacion.png", dpi=150)
+    print("   Guardado: resultados/celulas/resultado_segmentacion.png")
     print("\nListo!")
 
 
