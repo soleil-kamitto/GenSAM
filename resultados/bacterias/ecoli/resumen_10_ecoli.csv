@@ -1,0 +1,11 @@
+imagen,dataset,GT (real),Pred CellSAM,Diferencia,Área media (px²),Excentricidad,Solidez,Diámetro equiv (px)
+2c_e_coli/pos2_fr_1,2c_e_coli,56,54,-2,653.9,0.958,0.903,28.7
+2c_e_coli/pos2_fr_20,2c_e_coli,72,71,-1,630.9,0.952,0.907,28.0
+2c_e_coli/pos2_fr_40,2c_e_coli,82,84,2,656.2,0.963,0.887,28.4
+2c_e_coli/pos5_fr_1,2c_e_coli,36,37,1,587.7,0.949,0.885,26.9
+2c_e_coli/pos5_fr_20,2c_e_coli,48,45,-3,634.7,0.95,0.905,28.1
+2e_e_coli/pos_6_slice_1,2e_e_coli,72,73,1,154.4,0.814,0.95,13.9
+2e_e_coli/pos_6_slice_10,2e_e_coli,72,73,1,162.1,0.823,0.953,14.3
+2e_e_coli/pos_6_slice_20,2e_e_coli,73,74,1,174.8,0.832,0.953,14.8
+2e_e_coli/pos_7_slice_1,2e_e_coli,44,44,0,145.8,0.825,0.948,13.5
+2e_e_coli/pos_7_slice_10,2e_e_coli,44,42,-2,155.2,0.849,0.948,13.9
