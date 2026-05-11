@@ -1,7 +1,7 @@
 """
-Muestra un mosaico de imágenes de cualquier carpeta del dataset.
-Uso: python ver_dataset.py <nombre_dataset> <split>
-Ejemplo: python ver_dataset.py bact_phase train
+Display an image mosaic from any dataset folder.
+Usage: python scripts/view_dataset.py <dataset_name> <split>
+Example: python scripts/view_dataset.py bact_phase train
 """
 
 import sys
@@ -54,6 +54,6 @@ for i, ax in enumerate(axes):
     ax.axis("off")
 
 plt.tight_layout()
-output = f"resultados/dataset/dataset_{dataset_name}_{split}.png"
+output = f"results/dataset/dataset_{dataset_name}_{split}.png"
 plt.savefig(output, dpi=120, bbox_inches="tight")
 print(f"Guardado: {output}")

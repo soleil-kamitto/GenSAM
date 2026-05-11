@@ -1,7 +1,7 @@
 """
-Análisis de actinomicetos con CellSAM.
-Uso: python scripts/analisis_actinomicetos.py <ruta_imagen>
-Ejemplo: python scripts/analisis_actinomicetos.py images/mi_imagen.tif
+Actinomycetes analysis with CellSAM.
+Usage: python scripts/analysis_actinomycetes.py <image_path>
+Example: python scripts/analysis_actinomycetes.py images/Actinomyces.israeli_0020.tif
 """
 
 import sys
@@ -71,8 +71,8 @@ for col in ["area_px", "perimetro_px", "excentricidad", "solidez", "diametro_equ
     print(f"    {col:<25} {df[col].mean():>10.2f} {df[col].min():>10.2f} {df[col].max():>10.2f}")
 
 nombre = img_path.stem
-df.to_csv(f"resultados/bacterias/actinomicetos/resultados_{nombre}.csv", index=False)
-print(f"\n    CSV: resultados/bacterias/actinomicetos/resultados_{nombre}.csv")
+df.to_csv(f"results/bacteria/actinomycetes/resultados_{nombre}.csv", index=False)
+print(f"\n    CSV: results/bacteria/actinomycetes/resultados_{nombre}.csv")
 
 # ── 5. ANÁLISIS COMPLETO ──────────────────────────────────────────────────────
 print("\n[6] Generando analisis_actinomicetos_completo.png...")
@@ -119,8 +119,8 @@ axes[1, 2].set_ylabel("Excentricidad")
 axes[1, 2].set_title("Forma vs Tamaño (color=solidez)")
 
 plt.tight_layout()
-plt.savefig(f"resultados/bacterias/actinomicetos/analisis_{nombre}.png", dpi=150, bbox_inches="tight")
-print(f"    Guardado: resultados/bacterias/actinomicetos/analisis_{nombre}.png")
+plt.savefig(f"results/bacteria/actinomycetes/analisis_{nombre}.png", dpi=150, bbox_inches="tight")
+print(f"    Guardado: results/bacteria/actinomycetes/analisis_{nombre}.png")
 
 # ── 6. COMPARACIÓN POSTPROCESAMIENTO ──────────────────────────────────────────
 print("\n[7] Generando comparacion_actinomicetos_postprocesamiento.png...")
@@ -140,8 +140,8 @@ axes2[2].set_title(f"Con postprocesamiento ({n_post} objetos)")
 axes2[2].axis("off")
 
 plt.tight_layout()
-plt.savefig(f"resultados/bacterias/actinomicetos/comparacion_{nombre}_postprocesamiento.png", dpi=150)
-print(f"    Guardado: resultados/bacterias/actinomicetos/comparacion_{nombre}_postprocesamiento.png")
+plt.savefig(f"results/bacteria/actinomycetes/comparacion_{nombre}_postprocesamiento.png", dpi=150)
+print(f"    Guardado: results/bacteria/actinomycetes/comparacion_{nombre}_postprocesamiento.png")
 
 # ── RESUMEN COMPARATIVO ───────────────────────────────────────────────────────
 print("\n" + "="*60)

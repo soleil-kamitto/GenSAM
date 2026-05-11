@@ -17,3 +17,26 @@ paper_evaluation/summary.csv
 
 # Secrets
 .env
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Node artifacts (not relevant to this Python project)
+package-lock.json
+node_modules/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Test / coverage
+.pytest_cache/
+htmlcov/
+.coverage
