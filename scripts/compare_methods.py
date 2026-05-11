@@ -54,7 +54,7 @@ _model = None
 def load_ground_truth(csv_path):
     """Load ground_truth.csv → {stem: (A, B)}."""
     gt = {}
-    with open(csv_path, newline="") as f:
+    with open(csv_path, newline="", encoding="utf-8-sig") as f:
         for row in csv.DictReader(f):
             stem = Path(row["image"]).stem
             gt[stem] = (int(row["plate_A"]), int(row["plate_B"]))
