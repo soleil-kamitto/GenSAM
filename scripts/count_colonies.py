@@ -36,11 +36,12 @@ MIN_SOLIDITY       = 0.50  # filter crescents/arcs (glass rim artifacts)
 WATERSHED_MIN_DIST = 20    # px — min distance between colony centers
                             # increase if overcounting, decrease if undercounting
 MAX_HOLE_AREA      = 400   # px² — only fill holes this small (colony center dots)
-OPEN_ITERATIONS    = 2     # morphological open passes to remove speckle
-BG_RING_INNER      = 0.78  # inner radius fraction for background ring sample
-BG_RING_OUTER      = 0.94  # outer radius fraction for background ring sample
-                            # region between these two fractions is used to
-                            # estimate agar color (adjust if rim artifacts appear)
+OPEN_ITERATIONS    = 1     # morphological open passes to remove speckle
+# Top-hat channel (catches white/cream colonies brighter than background)
+TOPHAT_KERNEL      = 81    # px — must be larger than the biggest colony
+TOPHAT_THRESHOLD   = 10    # intensity cutoff on top-hat output (0-255)
+# Saturation channel (catches colored colonies: pink, orange, yellow, etc.)
+SAT_THRESHOLD      = 35    # HSV saturation cutoff (0-255); lower = more sensitive
 
 
 def detect_plates(img_bgr):
@@ -124,42 +125,36 @@ def crop_plate(img_bgr, cx, cy, r, shrink=0.86):
 
 def segment_colonies(crop_bgr, plate_mask):
     """
-    Segment colonies using LAB color distance from the agar background.
+    Hybrid segmentation combining two independent channels:
 
-    Background is estimated from the outer annular ring of the plate
-    (BG_RING_INNER..BG_RING_OUTER fraction of radius), where colonies are
-    sparse. Threshold is determined per-image with Otsu, so it adapts to
-    different lighting conditions automatically.
+    1. Top-hat on L (LAB lightness): detects white/cream colonies that are
+       brighter than the local agar background regardless of color.
+    2. Saturation threshold in HSV: detects colored colonies (pink, orange,
+       yellow) that stand out from the low-saturation agar.
+
+    The two binary masks are combined with OR so both colony types are found
+    in the same image without parameter conflict.
 
     Returns (label_image, list_of_valid_regionprops).
     """
     blurred = cv2.GaussianBlur(crop_bgr, (5, 5), 0)
-    lab     = cv2.cvtColor(blurred, cv2.COLOR_BGR2LAB).astype(np.float32)
 
-    # ── Estimate agar background from the plate's outer ring ─────────────────
-    ys, xs = np.where(plate_mask > 0)
-    cx, cy = xs.mean(), ys.mean()
-    r      = max(xs.max() - xs.min(), ys.max() - ys.min()) / 2
+    # ── Channel 1: top-hat on L (luminance) for white/cream colonies ─────────
+    lab = cv2.cvtColor(blurred, cv2.COLOR_BGR2LAB)
+    L   = cv2.bitwise_and(lab[:, :, 0], lab[:, :, 0], mask=plate_mask)
 
-    H, W   = plate_mask.shape
-    Y, X   = np.mgrid[0:H, 0:W]
-    dist_c = np.sqrt((X - cx) ** 2 + (Y - cy) ** 2)
+    kernel  = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (TOPHAT_KERNEL, TOPHAT_KERNEL))
+    tophat  = cv2.morphologyEx(L, cv2.MORPH_TOPHAT, kernel)
+    _, bin_lum = cv2.threshold(tophat, TOPHAT_THRESHOLD, 255, cv2.THRESH_BINARY)
 
-    ring_mask = (plate_mask > 0) & (dist_c >= r * BG_RING_INNER) & (dist_c <= r * BG_RING_OUTER)
-    if ring_mask.sum() > 50:
-        bg_lab = np.median(lab[ring_mask], axis=0)
-    else:
-        bg_lab = np.median(lab[plate_mask > 0], axis=0)
+    # ── Channel 2: saturation in HSV for colored colonies ────────────────────
+    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+    sat = cv2.bitwise_and(hsv[:, :, 1], hsv[:, :, 1], mask=plate_mask)
+    _, bin_col = cv2.threshold(sat, SAT_THRESHOLD, 255, cv2.THRESH_BINARY)
 
-    # ── Per-pixel Euclidean distance from background in LAB ──────────────────
-    diff     = lab - bg_lab[np.newaxis, np.newaxis, :]
-    dist_col = np.sqrt(np.sum(diff ** 2, axis=2))
-
-    dist_col_masked = np.clip(dist_col * (plate_mask > 0), 0, 255).astype(np.uint8)
-
-    # Otsu finds the optimal threshold per image automatically
-    _, binary = cv2.threshold(dist_col_masked, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    binary    = cv2.bitwise_and(binary, binary, mask=plate_mask)
+    # ── Combine: colony if bright OR colored ─────────────────────────────────
+    binary = cv2.bitwise_or(bin_lum, bin_col)
+    binary = cv2.bitwise_and(binary, binary, mask=plate_mask)
 
     # ── Fill only small holes (colony center dots, NOT agar gaps) ────────────
     inv_binary  = (~binary.astype(bool))
