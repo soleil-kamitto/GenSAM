@@ -35,10 +35,12 @@ MAX_COLONY_AREA    = 50000 # px² — blobs larger than this are merged/artifact
 MIN_SOLIDITY       = 0.50  # filter crescents/arcs (glass rim artifacts)
 WATERSHED_MIN_DIST = 20    # px — min distance between colony centers
                             # increase if overcounting, decrease if undercounting
-COLOR_DIST_THRESH  = 15    # LAB Euclidean distance from background color
-                            # decrease if missing faint colonies, increase if noisy
 MAX_HOLE_AREA      = 400   # px² — only fill holes this small (colony center dots)
 OPEN_ITERATIONS    = 2     # morphological open passes to remove speckle
+BG_RING_INNER      = 0.78  # inner radius fraction for background ring sample
+BG_RING_OUTER      = 0.94  # outer radius fraction for background ring sample
+                            # region between these two fractions is used to
+                            # estimate agar color (adjust if rim artifacts appear)
 
 
 def detect_plates(img_bgr):
@@ -124,26 +126,39 @@ def segment_colonies(crop_bgr, plate_mask):
     """
     Segment colonies using LAB color distance from the agar background.
 
-    The background color is estimated as the median LAB value of all plate
-    pixels. Any pixel whose LAB distance from that background exceeds
-    COLOR_DIST_THRESH is considered a colony — this detects white, cream,
-    pink, orange, and yellow colonies equally well without per-image tuning.
+    Background is estimated from the outer annular ring of the plate
+    (BG_RING_INNER..BG_RING_OUTER fraction of radius), where colonies are
+    sparse. Threshold is determined per-image with Otsu, so it adapts to
+    different lighting conditions automatically.
 
     Returns (label_image, list_of_valid_regionprops).
     """
-    # ── Estimate agar background color ───────────────────────────────────────
     blurred = cv2.GaussianBlur(crop_bgr, (5, 5), 0)
     lab     = cv2.cvtColor(blurred, cv2.COLOR_BGR2LAB).astype(np.float32)
 
-    plate_pixels = lab[plate_mask > 0]
-    bg_lab       = np.median(plate_pixels, axis=0)   # robust background estimate
+    # ── Estimate agar background from the plate's outer ring ─────────────────
+    ys, xs = np.where(plate_mask > 0)
+    cx, cy = xs.mean(), ys.mean()
+    r      = max(xs.max() - xs.min(), ys.max() - ys.min()) / 2
+
+    H, W   = plate_mask.shape
+    Y, X   = np.mgrid[0:H, 0:W]
+    dist_c = np.sqrt((X - cx) ** 2 + (Y - cy) ** 2)
+
+    ring_mask = (plate_mask > 0) & (dist_c >= r * BG_RING_INNER) & (dist_c <= r * BG_RING_OUTER)
+    if ring_mask.sum() > 50:
+        bg_lab = np.median(lab[ring_mask], axis=0)
+    else:
+        bg_lab = np.median(lab[plate_mask > 0], axis=0)
 
     # ── Per-pixel Euclidean distance from background in LAB ──────────────────
     diff     = lab - bg_lab[np.newaxis, np.newaxis, :]
     dist_col = np.sqrt(np.sum(diff ** 2, axis=2))
 
-    dist_col_masked = (dist_col * (plate_mask > 0)).astype(np.uint8)
-    _, binary = cv2.threshold(dist_col_masked, COLOR_DIST_THRESH, 255, cv2.THRESH_BINARY)
+    dist_col_masked = np.clip(dist_col * (plate_mask > 0), 0, 255).astype(np.uint8)
+
+    # Otsu finds the optimal threshold per image automatically
+    _, binary = cv2.threshold(dist_col_masked, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     binary    = cv2.bitwise_and(binary, binary, mask=plate_mask)
 
     # ── Fill only small holes (colony center dots, NOT agar gaps) ────────────
