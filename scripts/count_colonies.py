@@ -183,7 +183,7 @@ def segment_colonies(crop_bgr, plate_mask):
         valid = [p for p in props
                  if MIN_COLONY_AREA <= p.area <= MAX_COLONY_AREA
                  and p.solidity >= MIN_SOLIDITY]
-        return labels_out, valid
+        return labels_out, valid, binary_filled
 
     local_max = np.zeros_like(dist, dtype=bool)
     local_max[tuple(coords.T)] = True
@@ -195,7 +195,7 @@ def segment_colonies(crop_bgr, plate_mask):
              if MIN_COLONY_AREA <= p.area <= MAX_COLONY_AREA
              and p.solidity >= MIN_SOLIDITY]
 
-    return labels_ws, valid
+    return labels_ws, valid, binary_filled
 
 
 def draw_overlay(crop_bgr, valid_props, labels_ws):
@@ -235,7 +235,7 @@ def process_image(img_path, output_dir):
     for i, (cx, cy, r) in enumerate(plates):
         name = plate_names[i] if i < len(plate_names) else str(i + 1)
         crop, mask, _, _ = crop_plate(img, cx, cy, r)
-        labels_ws, valid = segment_colonies(crop, mask)
+        labels_ws, valid, binary_raw = segment_colonies(crop, mask)
         n                = len(valid)
         counts.append(n)
         print(f"    Plate {name}: {n} colonies")
@@ -247,11 +247,10 @@ def process_image(img_path, output_dir):
         axes[i, 0].set_title(f"Plate {name} — original", fontsize=13)
         axes[i, 0].axis("off")
 
-        binary_vis = np.zeros_like(labels_ws, dtype=np.uint8)
-        for p in valid:
-            binary_vis[labels_ws == p.label] = 255
-        axes[i, 1].imshow(binary_vis, cmap="gray")
-        axes[i, 1].set_title(f"Plate {name} — colony mask", fontsize=13)
+        # Show the raw binary before watershed so we can see what the
+        # segmentation step detects before area/solidity filtering.
+        axes[i, 1].imshow(binary_raw, cmap="gray")
+        axes[i, 1].set_title(f"Plate {name} — binary (pre-filter)", fontsize=13)
         axes[i, 1].axis("off")
 
         axes[i, 2].imshow(overlay)
