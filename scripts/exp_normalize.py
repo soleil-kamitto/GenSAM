@@ -340,6 +340,22 @@ def main():
         print(f"  Metodo: {exp['name']}")
         print(f"{'='*55}")
 
+        # Si ya existe el CSV con todas las imagenes, saltarse este experimento
+        summary_path = exp_dir / 'summary.csv'
+        if summary_path.exists():
+            with open(summary_path, newline='') as f:
+                done = sum(1 for _ in csv.reader(f)) - 1  # filas sin header
+            if done >= len(images):
+                print(f'  Ya completado ({done} imagenes), saltando.')
+                with open(summary_path, newline='') as f:
+                    for row in csv.DictReader(f):
+                        records.append({
+                            'name':   row['image'],
+                            'counts': [int(row['plate_A']), int(row['plate_B'])],
+                        })
+                all_results[exp['name']] = records
+                continue
+
         for idx, img_path in enumerate(images, 1):
             print(f'  [{idx}/{len(images)}] {img_path.name}', end='  ')
             counts = process_image(img_path, exp, exp_dir)
