@@ -161,11 +161,19 @@ def segment_classical(crop_bgr, plate_mask):
 def segment_cellsam(crop_bgr, plate_mask, normalize):
     model    = get_cached_model()
     crop_rgb = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2RGB)
-    mask, _, _ = segment_cellular_image(
-        crop_rgb, model=model,
-        normalize=normalize, postprocess=POSTPROCESS,
-        bbox_threshold=BBOX_THRESHOLD, device='cpu',
-    )
+    try:
+        mask, _, _ = segment_cellular_image(
+            crop_rgb, model=model,
+            normalize=normalize, postprocess=POSTPROCESS,
+            bbox_threshold=BBOX_THRESHOLD, device='cpu',
+        )
+    except (AttributeError, TypeError):
+        # CellSAM returns None internally when no objects are detected
+        mask = np.zeros(crop_bgr.shape[:2], dtype=np.int32)
+
+    if mask is None:
+        mask = np.zeros(crop_bgr.shape[:2], dtype=np.int32)
+
     mask = mask.copy()
     mask[plate_mask == 0] = 0
     props = regionprops(mask)
