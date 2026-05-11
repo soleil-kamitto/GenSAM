@@ -2,12 +2,15 @@
 Compare CellSAM vs classical CV colony counting on all plate images.
 
 Usage:
-    python scripts/compare_methods.py images/placas/
+    python scripts/compare_methods.py images/placas/ [ground_truth.csv]
+
+If a ground_truth.csv is found in the images folder (or passed explicitly),
+it is included in the chart and error table.
 
 Outputs (in results/colonies/):
-    comparison_chart.png       — bar chart: counts by method across all images
-    <image>_comparison.png     — per-image side-by-side masks for both methods
-    comparison_summary.csv     — raw counts table
+    comparison_chart.png       — bar chart: GT vs classical vs CellSAM
+    <image>_comparison.png     — per-image side-by-side overlays
+    comparison_summary.csv     — counts + absolute error vs ground truth
 """
 
 import sys
@@ -46,6 +49,16 @@ POSTPROCESS        = False
 SUPPORTED_EXT = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp"}
 
 _model = None
+
+
+def load_ground_truth(csv_path):
+    """Load ground_truth.csv → {stem: (A, B)}."""
+    gt = {}
+    with open(csv_path, newline="") as f:
+        for row in csv.DictReader(f):
+            stem = Path(row["image"]).stem
+            gt[stem] = (int(row["plate_A"]), int(row["plate_B"]))
+    return gt
 
 
 def _get_model():
@@ -281,40 +294,56 @@ def process_image(img_path, output_dir):
 
 def make_chart(results, output_dir):
     """
-    Bar chart: classical vs CellSAM counts for every image and plate.
+    Grouped bar chart: ground truth | classical CV | CellSAM per image.
+    Ground truth bars are shown only when available.
     """
-    images   = [r["name"] for r in results]
-    cl_A     = [r["classical"][0] for r in results]
-    cl_B     = [r["classical"][1] for r in results]
-    cs_A     = [r["cellsam"][0]   for r in results]
-    cs_B     = [r["cellsam"][1]   for r in results]
+    images  = [r["name"] for r in results]
+    has_gt  = any(r.get("gt") for r in results)
 
-    x     = np.arange(len(images))
-    width = 0.35
+    cl_A = [r["classical"][0] for r in results]
+    cl_B = [r["classical"][1] for r in results]
+    cs_A = [r["cellsam"][0]   for r in results]
+    cs_B = [r["cellsam"][1]   for r in results]
+    gt_A = [r["gt"][0] if r.get("gt") else None for r in results]
+    gt_B = [r["gt"][1] if r.get("gt") else None for r in results]
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 9), sharex=True)
-    fig.suptitle("Comparativa: Classical CV vs CellSAM", fontsize=14, fontweight="bold")
+    x       = np.arange(len(images))
+    n_bars  = 3 if has_gt else 2
+    width   = 0.22 if has_gt else 0.35
+    offsets = [-width, 0, width] if has_gt else [-width / 2, width / 2]
 
-    for ax, cl_vals, cs_vals, plate in [
-        (ax1, cl_A, cs_A, "Placa A"),
-        (ax2, cl_B, cs_B, "Placa B"),
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(13, 10), sharex=True)
+    fig.suptitle("Comparativa de métodos de conteo de colonias", fontsize=14,
+                 fontweight="bold")
+
+    for ax, cl_vals, cs_vals, gt_vals, plate in [
+        (ax1, cl_A, cs_A, gt_A, "Placa A"),
+        (ax2, cl_B, cs_B, gt_B, "Placa B"),
     ]:
-        bars1 = ax.bar(x - width / 2, cl_vals, width, label="Classical CV",
-                       color="#4C72B0", alpha=0.85)
-        bars2 = ax.bar(x + width / 2, cs_vals, width, label="CellSAM",
-                       color="#DD8452", alpha=0.85)
+        all_vals = [v for v in cl_vals + cs_vals + gt_vals if v is not None]
 
-        ax.bar_label(bars1, padding=3, fontsize=9)
-        ax.bar_label(bars2, padding=3, fontsize=9)
+        if has_gt:
+            gt_safe = [v if v is not None else 0 for v in gt_vals]
+            b0 = ax.bar(x + offsets[0], gt_safe, width, label="Ground Truth",
+                        color="#2ca02c", alpha=0.85)
+            ax.bar_label(b0, padding=3, fontsize=8)
+
+        b1 = ax.bar(x + offsets[-2], cl_vals, width, label="Classical CV",
+                    color="#4C72B0", alpha=0.85)
+        b2 = ax.bar(x + offsets[-1], cs_vals, width, label="CellSAM",
+                    color="#DD8452", alpha=0.85)
+
+        ax.bar_label(b1, padding=3, fontsize=8)
+        ax.bar_label(b2, padding=3, fontsize=8)
         ax.set_ylabel("Colonias contadas")
-        ax.set_title(plate)
-        ax.legend()
-        ax.set_ylim(0, max(max(cl_vals + cs_vals, default=1) * 1.2, 10))
+        ax.set_title(plate, fontsize=12)
+        ax.legend(fontsize=9)
+        ax.set_ylim(0, max(all_vals, default=1) * 1.25)
         ax.grid(axis="y", alpha=0.3)
 
+    labels = [img.replace("actinomicetos_", "actin_") for img in images]
     ax2.set_xticks(x)
-    ax2.set_xticklabels([img.replace("actinomicetos_", "actin_") for img in images],
-                         rotation=30, ha="right", fontsize=9)
+    ax2.set_xticklabels(labels, rotation=30, ha="right", fontsize=9)
 
     plt.tight_layout()
     out = output_dir / "comparison_chart.png"
@@ -329,6 +358,13 @@ def main():
     images_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("images/placas")
     output_dir = Path("results/colonies")
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load ground truth if available
+    gt_path = (Path(sys.argv[2]) if len(sys.argv) > 2
+               else images_dir / "ground_truth.csv")
+    gt = load_ground_truth(gt_path) if gt_path.exists() else {}
+    if gt:
+        print(f"Ground truth loaded: {gt_path} ({len(gt)} images)\n")
 
     images = sorted(p for p in images_dir.iterdir()
                     if p.suffix.lower() in SUPPORTED_EXT)
@@ -346,31 +382,59 @@ def main():
         except Exception as e:
             print(f"  ERROR: {e}")
             counts = {"classical": [None, None], "cellsam": [None, None]}
-        results.append({"name": img_path.stem, **counts})
+
+        row = {"name": img_path.stem, **counts}
+        if img_path.stem in gt:
+            row["gt"] = gt[img_path.stem]
+        results.append(row)
         print()
 
     # Summary CSV
+    has_gt   = any(r.get("gt") for r in results)
     csv_path = output_dir / "comparison_summary.csv"
     with open(csv_path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["image", "classical_A", "classical_B", "cellsam_A", "cellsam_B"])
+        header = ["image", "classical_A", "classical_B", "cellsam_A", "cellsam_B"]
+        if has_gt:
+            header += ["gt_A", "gt_B", "err_classical_A", "err_classical_B",
+                       "err_cellsam_A", "err_cellsam_B"]
+        w.writerow(header)
         for r in results:
-            w.writerow([r["name"],
-                        r["classical"][0], r["classical"][1],
-                        r["cellsam"][0],   r["cellsam"][1]])
+            row = [r["name"],
+                   r["classical"][0], r["classical"][1],
+                   r["cellsam"][0],   r["cellsam"][1]]
+            if has_gt and r.get("gt"):
+                ga, gb = r["gt"]
+                ca, cb = r["classical"]
+                sa, sb = r["cellsam"]
+                row += [ga, gb,
+                        (ca - ga) if ca is not None else "",
+                        (cb - gb) if cb is not None else "",
+                        (sa - ga) if sa is not None else "",
+                        (sb - gb) if sb is not None else ""]
+            w.writerow(row)
     print(f"  CSV saved: {csv_path}")
 
     # Chart
     make_chart(results, output_dir)
 
     # Console table
-    print("\n" + "=" * 65)
-    print(f"  {'Image':<22} {'Cl-A':>6} {'Cl-B':>6} {'CS-A':>6} {'CS-B':>6}")
-    print("  " + "-" * 55)
+    print("\n" + "=" * 75)
+    if has_gt:
+        print(f"  {'Image':<22} {'GT-A':>5} {'GT-B':>5} {'Cl-A':>5} {'Cl-B':>5} {'CS-A':>5} {'CS-B':>5}")
+    else:
+        print(f"  {'Image':<22} {'Cl-A':>6} {'Cl-B':>6} {'CS-A':>6} {'CS-B':>6}")
+    print("  " + "-" * 65)
     for r in results:
-        print(f"  {r['name']:<22} {str(r['classical'][0]):>6} {str(r['classical'][1]):>6}"
-              f" {str(r['cellsam'][0]):>6} {str(r['cellsam'][1]):>6}")
-    print("=" * 65)
+        if has_gt and r.get("gt"):
+            ga, gb = r["gt"]
+            print(f"  {r['name']:<22} {ga:>5} {gb:>5}"
+                  f" {str(r['classical'][0]):>5} {str(r['classical'][1]):>5}"
+                  f" {str(r['cellsam'][0]):>5} {str(r['cellsam'][1]):>5}")
+        else:
+            print(f"  {r['name']:<22} {str(r['classical'][0]):>6} {str(r['classical'][1]):>6}"
+                  f" {str(r['cellsam'][0]):>6} {str(r['cellsam'][1]):>6}")
+    print("=" * 75)
 
 
 if __name__ == "__main__":
