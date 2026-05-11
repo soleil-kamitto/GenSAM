@@ -41,7 +41,9 @@ OPEN_ITERATIONS    = 1     # morphological open passes to remove speckle
 TOPHAT_KERNEL      = 81    # px — must be larger than the biggest colony
 TOPHAT_THRESHOLD   = 10    # intensity cutoff on top-hat output (0-255)
 # Saturation channel (catches colored colonies: pink, orange, yellow, etc.)
-SAT_THRESHOLD      = 35    # HSV saturation cutoff (0-255); lower = more sensitive
+SAT_THRESHOLD      = 60    # HSV saturation cutoff (0-255)
+                            # keep high enough to ignore agar color (~20-40)
+                            # lower only if colored colonies are being missed
 
 
 def detect_plates(img_bgr):
@@ -137,18 +139,18 @@ def segment_colonies(crop_bgr, plate_mask):
 
     Returns (label_image, list_of_valid_regionprops).
     """
-    blurred = cv2.GaussianBlur(crop_bgr, (5, 5), 0)
-
-    # ── Channel 1: top-hat on L (luminance) for white/cream colonies ─────────
-    lab = cv2.cvtColor(blurred, cv2.COLOR_BGR2LAB)
-    L   = cv2.bitwise_and(lab[:, :, 0], lab[:, :, 0], mask=plate_mask)
+    # ── Channel 1: top-hat on grayscale for white/cream colonies ─────────────
+    gray    = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2GRAY)
+    gray    = cv2.bitwise_and(gray, gray, mask=plate_mask)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
     kernel  = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (TOPHAT_KERNEL, TOPHAT_KERNEL))
-    tophat  = cv2.morphologyEx(L, cv2.MORPH_TOPHAT, kernel)
+    tophat  = cv2.morphologyEx(blurred, cv2.MORPH_TOPHAT, kernel)
     _, bin_lum = cv2.threshold(tophat, TOPHAT_THRESHOLD, 255, cv2.THRESH_BINARY)
+    bin_lum = cv2.bitwise_and(bin_lum, bin_lum, mask=plate_mask)
 
     # ── Channel 2: saturation in HSV for colored colonies ────────────────────
-    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2HSV)
     sat = cv2.bitwise_and(hsv[:, :, 1], hsv[:, :, 1], mask=plate_mask)
     _, bin_col = cv2.threshold(sat, SAT_THRESHOLD, 255, cv2.THRESH_BINARY)
 
@@ -234,6 +236,7 @@ def process_image(img_path, output_dir):
 
     for i, (cx, cy, r) in enumerate(plates):
         name = plate_names[i] if i < len(plate_names) else str(i + 1)
+        print(f"    Plate {name}: circle at ({cx},{cy}) r={r}")
         crop, mask, _, _ = crop_plate(img, cx, cy, r)
         labels_ws, valid, binary_raw = segment_colonies(crop, mask)
         n                = len(valid)
