@@ -53,7 +53,6 @@ BASE_OUT = Path('results/colonias')
 EXPERIMENTS = [
     {'name': 'cellsam_con_prepro', 'method': 'cellsam', 'normalize': True},
     {'name': 'cellsam_sin_prepro', 'method': 'cellsam', 'normalize': False},
-    {'name': 'classical_cv',       'method': 'classical'},
 ]
 
 # ── MODELO ────────────────────────────────────────────────────────────────────
@@ -231,14 +230,12 @@ def make_chart(all_results, gt, output_dir):
     short_names = [n.replace('actinomicetos_', 'actin_') for n in img_names]
 
     colors = {
-        'classical_cv':       '#4C72B0',
         'cellsam_con_prepro': '#DD8452',
-        'cellsam_sin_prepro': '#E377C2',
+        'cellsam_sin_prepro': '#4C72B0',
     }
     labels = {
-        'classical_cv':       'Classical CV',
-        'cellsam_con_prepro': 'CellSAM con prepro (normalize=True)',
-        'cellsam_sin_prepro': 'CellSAM sin prepro (normalize=False)',
+        'cellsam_con_prepro': 'CellSAM normalize=True  (con prepro)',
+        'cellsam_sin_prepro': 'CellSAM normalize=False (sin prepro)',
     }
 
     x     = np.arange(len(img_names))
