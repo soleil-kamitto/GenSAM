@@ -167,11 +167,11 @@ def segment_cellsam(crop_bgr, plate_mask, normalize):
             normalize=normalize, postprocess=POSTPROCESS,
             bbox_threshold=BBOX_THRESHOLD, device='cpu',
         )
-    except (AttributeError, TypeError):
-        # CellSAM returns None internally when no objects are detected
-        mask = np.zeros(crop_bgr.shape[:2], dtype=np.int32)
-
-    if mask is None:
+        if mask is None:
+            print(f'    [aviso] CellSAM devolvio None (sin detecciones)')
+            mask = np.zeros(crop_bgr.shape[:2], dtype=np.int32)
+    except (AttributeError, TypeError) as e:
+        print(f'    [aviso] CellSAM error interno: {e}')
         mask = np.zeros(crop_bgr.shape[:2], dtype=np.int32)
 
     mask = mask.copy()
