@@ -40,3 +40,38 @@ env/
 .pytest_cache/
 htmlcov/
 .coverage
+
+# ── Datos y resultados regenerables ──────────────────────────────────────────
+# Se dejan fuera del repositorio por volumen. Todo esto se reconstruye con los
+# scripts a partir de las fotografias y del conteo manual, que si estan
+# versionados.
+
+# paneles y figuras de cada corrida, mas de 2 GB
+results/colonias/
+results/diagnostico/
+results/colonies/
+
+# placas sinteticas, se regeneran con scripts/generar_sinteticas.py
+datasets/
+
+# entrenamientos de YOLO
+runs/
+
+# muestra publica de AGAR, se descarga de agar.neurosys.com
+images/agar_muestra/
+
+# figuras del capitulo, se regeneran con scripts/fig_comparacion_gt.py
+docs/figuras/
+
+# imagenes del conteo manual, se regeneran con scripts/exportar_gt_imagenes.py
+# a partir de las coordenadas, que si estan versionadas
+results/ground_truth_mis_fotos/imagenes/
+
+# documentos generados a partir del markdown
+docs/*.docx
+docs/*.html
+notebooks/*.html
+notebooks/*.pdf
+
+# paquetes armados para Colab
+*_colab.zip
