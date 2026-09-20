@@ -524,6 +524,88 @@ apropiado para un laboratorio que estrena el sistema.
 
 ---
 
+## Fase 11. Qué separa un trazo de una colonia, y qué no
+
+Al llevar el conteo a mayor resolución se vio que la eliminación de la
+rotulación solo alcanza al **43 %** de los píxeles oscuros de la placa. La causa
+es que el marcador de estas placas es negro, y el negro no tiene tono, de modo
+que un criterio basado en el color no puede alcanzarlo. Se buscó entonces un
+criterio que no dependiera del color.
+
+### El descriptor de forma, y por qué parecía resolverlo
+
+Un trazo es largo y estrecho, mientras que una colonia es redonda. Eso se resume
+en una sola cifra independiente de la escala, el cociente entre el área del
+componente y el área del mayor disco que cabe dentro de él:
+
+> alargamiento = área / (π · semiancho²)
+
+Vale 1 para un disco perfecto y crece con la relación entre largo y ancho. Medido
+sobre el tercer lote, separa de forma aparentemente perfecta:
+
+| | Alargamiento |
+|---|---|
+| Colonias | 1,04 a 1,96 |
+| Trazos | 3,25 a 16,7 |
+
+Hay un hueco vacío entre 2 y 3, lo que invitaba a fijar el corte en 3,0.
+
+### El control negativo lo desmonta
+
+Antes de adoptarlo se aplicó a las **placas dobles, que son densas y no tienen
+escritura alguna**. Si el descriptor midiera lo que se pretende, allí no debería
+marcar casi nada.
+
+| Conjunto | Componentes oscuros | Con alargamiento > 3 |
+|----------|--------------------:|---------------------:|
+| Placas dobles, sin escritura | 44 | **31 (70,5 %)** |
+| Primer lote, contraluz | 406 | 36 (8,9 %) |
+| Tercer lote, con escritura | 271 | 83 (30,6 %) |
+
+En las placas densas, las colonias se tocan y forman cadenas, y una cadena es
+tan alargada como un trazo. La regla habría **borrado la mayor parte de las
+colonias justo en las placas más pobladas**, que son las que más importan. El
+descriptor no mide escritura, mide alargamiento, y ambas cosas coinciden solo
+cuando la placa está poco poblada.
+
+### Tres intentos de rescatarlo, los tres fallidos
+
+Se probaron tres propiedades que deberían distinguir un trazo de ancho constante
+de una cadena de colonias con bultos, comparando siempre contra el control
+negativo:
+
+| Descriptor | Densas sin escritura | Lote 3 con escritura |
+|------------|---------------------:|---------------------:|
+| Número de núcleos | 2,00 | 2,00 |
+| Área explicada por discos inscritos | 2,69 | 3,61 |
+| Oscuridad relativa al agar | 0,76 | 0,71 |
+
+Las distribuciones se solapan casi por completo. La posición tampoco sirve: el
+71 % de los componentes alargados de las placas sin escritura también llega al
+borde, porque allí el propio anillo del menisco es un componente oscuro y
+alargado.
+
+### Lo que queda establecido
+
+**El color es la única propiedad que separa el marcador de la biomasa.** No es
+un accidente sino algo esperable, porque el pigmento del rotulador y el de la
+colonia son sustancias distintas, mientras que su forma y su brillo pueden
+coincidir.
+
+De ahí se sigue una **limitación que hay que declarar**: el sistema trata bien el
+marcador de color y no puede tratar el marcador negro escrito sobre la zona de
+cultivo. La mitigación no es algorítmica sino de protocolo, y no cuesta nada:
+rotular en el reverso o en el anillo exterior, nunca cruzando el área sembrada.
+Es además buena práctica por sí misma, porque la escritura sobre el cultivo
+también estorba al conteo manual.
+
+Un resultado lateral sí es aprovechable. Las colonias redondas **nunca** superan
+el 0,90 del radio en las placas densas, y solo el 18 % lo hace en el tercer lote.
+Eso respalda por una vía independiente el recorte al 92 % del radio que se había
+fijado con la curva de recuperación.
+
+---
+
 ## Estado actual
 
 **Mejor configuración.** CellSAM base con recorte al 92 % del radio, corrección
@@ -543,7 +625,10 @@ color.
 | `images/placas` | 16 | 819, solo totales |
 | `images/mis_fotos` | 15 | 856, con coordenadas |
 | `images/mis_fotos_lote2` | 4 | prueba ciega, sin contar |
-| `datasets/sinteticas_yolo` | 600 | 46.591 |
+| `images/mis_fotos_lote3` | 10 | prueba ciega, conteo en poder de la investigadora |
+| `datasets/sinteticas_yolo` | 600 | 45.991 |
+| `datasets/sinteticas_variadas` | 800 | 59.411 |
+| **`datasets/sinteticas_v3`** | **1000** | **71.522** |
 
 **Pendiente.**
 
@@ -553,5 +638,9 @@ color.
 - Descargar el dataset AGAR completo, que requiere registro, y repetir el
   entrenamiento de YOLO para que el resultado sea concluyente
 - Contar a mano el segundo lote, para cerrar la prueba ciega
+- Comparar el conteo del tercer lote con el conteo manual que conserva la
+  investigadora, que es la unica forma de cerrar esa prueba
+- Medir si la inferencia por mosaico recupera colonias pequenas, y a que coste
+  en falsos positivos
 - Evaluar Cellpose y Omnipose con GPU
 - Ampliar el conjunto anotado y medir la concordancia entre varios anotadores
