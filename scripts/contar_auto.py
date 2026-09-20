@@ -81,7 +81,14 @@ def main():
     args = ap.parse_args()
 
     origen = Path(args.imagenes)
-    salida = Path('results/colonias') / f'{origen.name}_auto'
+
+    # El nombre de la carpeta incluye la variante de preprocesamiento. Sin eso,
+    # ejecutar dos variantes sobre el mismo lote hace que la segunda pise a la
+    # primera, y las imagenes de deteccion de la primera se pierden sin aviso.
+    # Ocurrio con el tercer lote: la corrida de densidad optica sobrescribio la
+    # de imagen directa, y solo se noto al revisar el CSV guardado.
+    sufijo = '_auto_densidad_optica' if args.densidad_optica else '_auto'
+    salida = Path('results/colonias') / f'{origen.name}{sufijo}'
     salida.mkdir(parents=True, exist_ok=True)
 
     rutas = sorted(p for p in origen.iterdir()
