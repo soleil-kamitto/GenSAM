@@ -46,6 +46,33 @@ DATOS = Path('datasets/adbc')
 TRAMOS = [(0, 10), (10, 30), (30, 60), (60, 150), (150, 250), (250, 10 ** 9)]
 SEMILLA = 20260920
 
+DIAMETRO_PLACA_MM = 90.0   # placa de Petri normalizada
+DIAM_MINIMO_MM = 0.8       # por debajo de esto tampoco se cuenta a mano
+
+
+def area_minima_fisica(dim_recorte=1200, shrink=0.92,
+                       diam_minimo_mm=DIAM_MINIMO_MM):
+    """
+    Area minima de colonia expresada en milimetros y traducida a pixeles.
+
+    El pipeline traia un minimo de 300 px2 fijado sobre las fotografias propias.
+    Medido sobre las anotaciones de ADBC, ese valor descartaria el 28,8 % de las
+    colonias anotadas y el 40,6 % de las de placas incontables, de modo que la
+    evaluacion mediria el filtro y no el detector.
+
+    Es el cuarto caso del mismo patron que este trabajo denuncia, junto al
+    estimador de densidad, el filtro de color y el umbral de deteccion: una
+    constante en pixeles fijada para un montaje concreto. La correccion es la
+    misma que en los otros tres, poner la regla en unidades que signifiquen algo
+    fuera de ese montaje.
+
+    Como el recorte se lleva siempre a un lado fijo y abarca una fraccion
+    conocida de una placa normalizada, la escala es deducible sin calibrar nada:
+    el lado del recorte corresponde a shrink por el diametro de la placa.
+    """
+    px_por_mm = dim_recorte / (shrink * DIAMETRO_PLACA_MM)
+    return float(np.pi * (diam_minimo_mm * px_por_mm / 2.0) ** 2)
+
 
 def nombre_tramo(lo, hi):
     return f'{lo + 1}-{hi}' if hi < 10 ** 8 else f'>{lo}'
@@ -95,7 +122,9 @@ def contar(model, ruta, usar_mosaico):
         par = calibrar(crop, mascara)
         base = flat_field(crop, mascara) if par['aplicar_flat'] else crop
         escala = dim / 1200.0
-        lim = (MIN_COLONY_AREA * escala ** 2, MAX_COLONY_AREA * escala ** 2)
+        # piso permisivo, para no decidir aqui lo que se quiere decidir despues
+        lim = (area_minima_fisica(diam_minimo_mm=0.4) * escala ** 2,
+               MAX_COLONY_AREA * escala ** 2)
         alto, ancho = base.shape[:2]
         fy, fx = cortes(alto, 2, SOLAPE), cortes(ancho, 2, SOLAPE)
         brutas = []
@@ -111,7 +140,10 @@ def contar(model, ruta, usar_mosaico):
                                           par['sat_minima'], lim, borde):
                     brutas.append({'cy': d['cy'] + y0, 'cx': d['cx'] + x0,
                                    'area': d['area']})
-        return len(fusionar(brutas)), 'ok'
+        # las areas se devuelven en el marco de 1200 px, no en el de 2400 del
+        # mosaico, para que el mismo minimo valga en las dos variantes
+        return [d['area'] / escala ** 2
+                for d in fusionar(brutas)], 'ok'
 
     crop, mascara = crop_plate(img, cx, cy, r)
     par = calibrar(crop, mascara)
@@ -122,15 +154,18 @@ def contar(model, ruta, usar_mosaico):
             normalize=True, postprocess=True,
             bbox_threshold=par['umbral'], device='cpu')
         if seg is None:
-            return 0, 'ok'
+            return [], 'ok'
     except (AttributeError, TypeError, ValueError):
-        return 0, 'ok'
+        return [], 'ok'
     seg = seg.copy()
     seg[mascara == 0] = 0
-    n = sum(1 for p in regionprops(seg)
-            if MIN_COLONY_AREA <= p.area <= MAX_COLONY_AREA
-            and p.solidity >= MIN_SOLIDITY)
-    return n, 'ok'
+
+    # Se devuelven las areas y no el conteo. El minimo de area es una decision
+    # discutible, y guardarlas permite variarlo despues sin volver a ejecutar
+    # el modelo, que sobre procesador cuesta minutos por placa. Solo se aplican
+    # aqui los criterios que no estan en discusion.
+    return [float(p.area) for p in regionprops(seg)
+            if p.area <= MAX_COLONY_AREA and p.solidity >= MIN_SOLIDITY], 'ok'
 
 
 def resumir(df):
@@ -192,17 +227,24 @@ def main():
     salida.mkdir(parents=True, exist_ok=True)
     nombre = f'adbc_{"mosaico" if args.mosaico else "placa_entera"}'
 
+    piso = area_minima_fisica()
+    print(f'Area minima: {piso:.0f} px2, equivalente a una colonia de '
+          f'{DIAM_MINIMO_MM} mm')
     print(f'{"placa":<18} {"tramo":<9} {"real":>6} {"contado":>8} {"error":>7}')
     print('-' * 52)
-    filas = []
+    filas, areas = [], []
     for _, f in sel.iterrows():
         ruta = DATOS / 'imagenes' / f.image_name
         if not ruta.exists():
             filas.append({**f.to_dict(), 'contado': None,
                           'estado': 'imagen no descargada'})
             continue
-        n, estado = contar(model, ruta, args.mosaico)
-        filas.append({**f.to_dict(), 'contado': n, 'estado': estado})
+        props, estado = contar(model, ruta, args.mosaico)
+        n = sum(1 for a in props if a >= piso)
+        filas.append({**f.to_dict(), 'contado': n, 'estado': estado,
+                      'detectadas_sin_piso': len(props)})
+        for a in props:
+            areas.append({'image_name': f.image_name, 'area': a})
         if estado == 'ok':
             print(f'{f.image_name:<18} {f.tramo:<9} {f.colonias:>6} '
                   f'{n:>8} {n - f.colonias:>+7}')
@@ -210,10 +252,22 @@ def main():
             print(f'{f.image_name:<18} {f.tramo:<9} {f.colonias:>6} '
                   f'{"-":>8}  {estado}')
         pd.DataFrame(filas).to_csv(salida / f'{nombre}.csv', index=False)
+        pd.DataFrame(areas).to_csv(salida / f'{nombre}_areas.csv', index=False)
 
     df = pd.DataFrame(filas)
     df.to_csv(salida / f'{nombre}.csv', index=False)
+    pd.DataFrame(areas).to_csv(salida / f'{nombre}_areas.csv', index=False)
     resumir(df)
+
+    # sensibilidad al unico parametro discutible que queda
+    ar = pd.DataFrame(areas)
+    if len(ar):
+        print('\nSensibilidad al area minima')
+        print(f'{"diametro mm":>12} {"px2":>8} {"total contado":>14}')
+        for mm in (0.4, 0.6, 0.8, 1.0, 1.35):
+            p = area_minima_fisica(diam_minimo_mm=mm)
+            print(f'{mm:>12.2f} {p:>8.0f} {int((ar.area >= p).sum()):>14}')
+        print(f'{"anotado":>12} {"":>8} {int(df.colonias.sum()):>14}')
     print(f'\nGuardado en {salida}/{nombre}.csv')
 
 
