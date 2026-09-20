@@ -526,7 +526,7 @@ preprocesamientos de fundamento distinto, sin disponer del recuento manual.
 | RC73-8 | 6 | 9 | |
 | RC73-9 | 19 | 21 | |
 | RC73-10 | 21 | 21 | 21 |
-| **Total** | **193** | **204** | |
+| **Total** | **193** | **204** | **192** |
 
 La corrección del borde se confirma en RC73-8, que pasó de 15 a 6 colonias, y el
 total bajó de 206 a 193 al desaparecer las muescas del inpainting.

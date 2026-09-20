@@ -81,8 +81,8 @@ Para poner en contexto el panorama tecnológico actual, la **Tabla 1.1** present
 | 1 | Omnipose (Deep Learning) | Red U-net con campo de gradiente de función de distancia. Alta precisión en células bacterianas de forma arbitraria en microscopía, y supera a los métodos clásicos en cultivos mixtos y formas alargadas o ramificadas. | $0 software + GPU | Cutler et al. (2022) |
 | 2 | CellSAM (Foundation Model) | Modelo de fundación basado en SAM + AnchorDETR, entrenado con un corpus diverso de imágenes celulares de múltiples modalidades. Capacidad de generalización hacia tipos celulares no vistos en el entrenamiento. | $0 software + CPU/GPU | Marks et al. (2025) |
 | 3 | ResNet-50 / Vision Transformer (ViT) | Clasificación automática de cepas resistentes a antibióticos mediante cambios de forma cuantificables en microscopía de luz, sin requerir pruebas bioquímicas adicionales. | No estimado | Ikebe et al. (2024) |
-| 4 | YOLO con inferencia por baldosas (SAHI) | Trocea la fotografía en baldosas solapadas de 640 × 640 antes de detectar, para que las colonias pequeñas no desaparezcan al reducir la imagen. Sobre fotografías de tres teléfonos distintos, el mAP@0.5 sube del rango 44,9–66,3 % al rango 95,4–96,9 %. | $0 software + GPU | Yildiz et al. (2026) |
-| 5 | Colony Grounded SAM2 | Combina Grounding DINO con SAM 2 para detectar y segmentar colonias prácticamente sin entrenamiento, con 93,1 % de precisión media sobre el conjunto ADBC. No trata organismos filamentosos. | $0 software + GPU | Colony Grounded SAM2 (2026) |
+| 4 | YOLO con inferencia por baldosas (SAHI) | Trocea la fotografía en baldosas solapadas de 640 × 640 antes de detectar, para que las colonias pequeñas no desaparezcan al reducir la imagen. Sobre fotografías de tres teléfonos distintos, el mAP@0.5 sube del rango 44,9–66,3 % al rango 95,4–96,9 %. | $0 software + GPU | Külcü y Balpetek Külcü (2026) |
+| 5 | Colony Grounded SAM2 | Combina Grounding DINO con SAM 2 para detectar y segmentar colonias prácticamente sin entrenamiento, con 93,1 % de precisión media sobre el conjunto ADBC. No trata organismos filamentosos. | $0 software + GPU | Korporaal et al. (2026) |
 | 6 | **CellSAM con parámetros derivados de la imagen** *(presente trabajo)* | CellSAM adaptado a imágenes macroscópicas de placas de Petri, con los parámetros del pipeline derivados de propiedades medibles de cada fotografía en lugar de fijados a mano. **MAE = 5,94** en el conjunto de referencia, **MAE = 2,83** y 83,8 % de acierto en las placas propias, con validación externa sobre placas de otro laboratorio. Código abierto. | $0 | Presente trabajo |
 
 Como muestra la Tabla 1.2, el conteo de colonias con modelos de fundación sobre fotografías de teléfono es un terreno ya transitado, y por eso conviene ser preciso sobre dónde queda el aporte de este trabajo. La **Tabla 1.3** contrasta lo que esos trabajos declaran como pendiente con lo que aquí se desarrolla.
@@ -91,15 +91,15 @@ Como muestra la Tabla 1.2, el conteo de colonias con modelos de fundación sobre
 
 | Limitación declarada | Fuente | Tratamiento aquí |
 |----------------------|--------|------------------|
-| Falta validación externa en distintos laboratorios y dispositivos | Yildiz et al. (2026) | Es el objeto central del trabajo, con cuatro parámetros medidos que no transfieren y dos errores que solo aparecen fuera del laboratorio de origen |
-| Evaluación sobre un único conjunto público | Yildiz et al. (2026) | Tres lotes propios de captura independiente, más validación sobre el conjunto ADBC |
-| Detección por caja en lugar de segmentación de instancias | Yildiz et al. (2026) | CellSAM entrega segmentación de instancias |
-| Las colonias densamente agrupadas del centro se pierden | Colony Grounded SAM2 (2026) | Separación por cuencas hidrográficas con criterio de compacidad |
-| No se tratan organismos filamentosos | Colony Grounded SAM2 (2026) | Los actinomicetos son el objeto de estudio |
+| Falta validación externa en distintos laboratorios y dispositivos | Külcü y Balpetek Külcü (2026) | Es el objeto central del trabajo, con cuatro parámetros medidos que no transfieren y dos errores que solo aparecen fuera del laboratorio de origen |
+| Evaluación sobre un único conjunto público | Külcü y Balpetek Külcü (2026) | Tres lotes propios de captura independiente, más validación sobre el conjunto ADBC |
+| Detección por caja en lugar de segmentación de instancias | Külcü y Balpetek Külcü (2026) | CellSAM entrega segmentación de instancias |
+| Las colonias densamente agrupadas del centro se pierden | Korporaal et al. (2026) | Separación por cuencas hidrográficas con criterio de compacidad |
+| No se tratan organismos filamentosos | Korporaal et al. (2026) | Los actinomicetos son el objeto de estudio |
 
 Hallström et al. (2023; 2025) demostraron que la clasificación automática de especies bacterianas con aprendizaje profundo sobre imágenes de microscopía es viable con precisiones superiores al 93 %, aunque sus enfoques requieren chips microfluídicos y microscopios de contraste de fase, por lo que su uso queda limitado a laboratorios muy equipados. En el contexto latinoamericano, Acuña (2023) demostró que es viable construir sistemas de visión artificial con hardware impreso en 3D y control web para el conteo automático de microorganismos acuáticos, y ese antecedente metodológico se aplica de forma directa al presente trabajo.
 
-En cuanto a conjuntos de datos anotados, Rodríguez et al. (2023) publicaron ADBC, que reúne 369 fotografías de placas de 24 especies bacterianas con 56.865 colonias anotadas, tomadas con tres teléfonos distintos y sin iluminación normalizada ni protocolo estricto de posicionamiento. Por su parte, Majchrowska et al. (2021) publicaron AGAR, con 18.000 imágenes y 336.442 colonias. Ambos conjuntos se emplean aquí como referencia externa, y ADBC en particular sirve como prueba de transferencia porque sus condiciones de captura no tienen nada que ver con las del laboratorio de origen.
+En cuanto a conjuntos de datos anotados, Makrai et al. (2023) publicaron ADBC, que reúne 369 fotografías de placas de 24 especies bacterianas con 56.865 colonias anotadas, tomadas con tres teléfonos distintos y sin iluminación normalizada ni protocolo estricto de posicionamiento. Por su parte, Majchrowska et al. (2021) publicaron AGAR, con 18.000 imágenes y 336.442 colonias. Ambos conjuntos se emplean aquí como referencia externa, y ADBC en particular sirve como prueba de transferencia porque sus condiciones de captura no tienen nada que ver con las del laboratorio de origen.
 
 ### 1.4.1 Resultados sobre placas propias
 
@@ -262,11 +262,11 @@ Una vez resuelto ese obstáculo, el lote se contó con tres preprocesamientos de
 | RC73-6 | 11 | 13 | 13 |
 | RC73-7 | 15 | 12 | 13 |
 | RC73-8 | 6 | 9 | 5 |
-| RC73-9 | 19 | 21 | pendiente |
+| RC73-9 | 19 | 21 | 19 |
 | RC73-10 | 21 | 21 | 21 |
-| **Total** | **193** | **204** | **173 en nueve placas** |
+| **Total** | **193** | **204** | **192** |
 
-Lo relevante es que los tres métodos convergen. Sobre las nueve placas donde las tres variantes están medidas, los totales son 174, 183 y 173 colonias respectivamente, es decir una dispersión inferior al 6 %, y la densidad óptica se separa de la imagen directa en 1,1 colonias por placa de media mientras que las baldosas se separan en menos de una. Eso permite algo que normalmente exige disponer del conteo manual, porque proporciona una estimación de la incertidumbre del método. Lo que no puede afirmarse a ciegas es cuál de los tres acierta, y por eso la conclusión defendible es más modesta y también más útil, ya que la elección del preprocesamiento no domina el resultado.
+Lo relevante es que los tres métodos convergen, ya que los totales son de 193, 204 y 192 colonias respectivamente, es decir una dispersión del 6.2 % entre el mayor y el menor. La diferencia mediana entre las tres variantes es de solo 2 colonias por placa, y la mayor discrepancia en una misma placa alcanza 4 colonias. Eso permite algo que normalmente exige disponer del conteo manual, porque proporciona una estimación de la incertidumbre del método. Lo que no puede afirmarse a ciegas es cuál de los tres acierta, y por eso la conclusión defendible es más modesta y también más útil, ya que la elección del preprocesamiento no domina el resultado.
 
 ### 1.4.5 Resultados negativos documentados
 
@@ -343,11 +343,11 @@ Cutler, K.J., Stringer, C., Lo, T.W., Rappez, L., Stroustrup, N., Peterson, S.B.
 
 Marks, M., Israel, U., Dilip, R., et al. "CellSAM: a foundation model for cell segmentation." *Nature Methods*, vol. 22, no. 12, pp. 2585–2593, 2025. https://doi.org/10.1038/s41592-025-02879-w
 
-Yildiz, [iniciales pendientes], et al. "Overcoming resolution constraints in automated colony counting via a high-performance deep learning framework using SAHI." *Scientific Reports*, 2026. https://www.nature.com/articles/s41598-026-55724-1 **[VERIFICAR autoría completa y número de artículo]**
+Külcü, S., & Balpetek Külcü, D. "Overcoming resolution constraints in automated colony counting via a high-performance deep learning framework using SAHI." *Scientific Reports*, vol. 16, 24516, 2026. https://doi.org/10.1038/s41598-026-55724-1
 
-"Colony Grounded SAM2: Zero-shot detection and segmentation of bacterial colonies using foundation models." arXiv:2603.13393, 2026. **[VERIFICAR autoría completa y estado de publicación]**
+Korporaal, D., de Kruijf, P., Litjens, R.H.G.M., & van der Velden, B.H.M. "Colony Grounded SAM2: Zero-shot detection and segmentation of bacterial colonies using foundation models." arXiv:2603.13393, 2026.
 
-Rodríguez, [iniciales pendientes], et al. "Annotated dataset for deep-learning-based bacterial colony detection." *Scientific Data*, vol. 10, 2023. https://doi.org/10.1038/s41597-023-02404-8 **[VERIFICAR autoría completa]**
+Makrai, L., Fodróczy, B., Nagy, S.Á., Czeiszing, P., Csabai, I., Szita, G., & Solymosi, N. "Annotated dataset for deep-learning-based bacterial colony detection." *Scientific Data*, vol. 10, 497, 2023. https://doi.org/10.1038/s41597-023-02404-8
 
 Majchrowska, S., Pawłowski, J., Guła, G., Bonus, T., Hanas, A., Loch, A., et al. "AGAR a microbial colony dataset for deep learning detection." arXiv:2108.01234, 2021.
 
@@ -370,9 +370,7 @@ Brugger, S.D., Baumberger, C., Jost, M., Jenni, W., Brugger, U., & Mühlemann, K
 ---
 
 > **Notas para completar:**
-> - **Referencias de 2026 y ADBC:** verificar la autoría completa, el número de artículo y el estado de publicación de Yildiz et al. (2026), de Colony Grounded SAM2 (2026) y de Rodríguez et al. (2023). Las cifras citadas en el texto proceden de los propios artículos, pero los nombres de autor deben confirmarse antes de la entrega.
 > - **Figuras 1.1 y 1.2:** generar con datos de Scopus (búsqueda: *Actinomycetes* y *Actinomycetes AND automated counting*, 1990–2024) y registrar la fecha de consulta y la sintaxis exacta, para poder citar las cifras del primer párrafo de 1.4 como recuento verificable.
 > - **Acuña (2023):** completar datos de universidad y enlace Cybertesis.
 > - **Costos de las Tablas 1.1 y 1.2:** los rangos de precio del conteo manual, de los contadores comerciales y del equipo MALDI-TOF provienen de estimaciones de mercado y no de las referencias citadas. Conviene respaldarlos con cotizaciones o catálogos de proveedor, o presentarlos explícitamente como estimaciones propias.
 > - **Sección 1.4.6:** completar con los resultados de la validación sobre ADBC cuando termine la ejecución, y contrastarlos con la predicción registrada.
-> - **Tabla 1.9:** completar la columna de baldosas cuando termine esa ejecución.
