@@ -218,6 +218,8 @@ def main():
     ap.add_argument('--mosaico', action='store_true')
     ap.add_argument('--solo-muestra', action='store_true',
                     help='mostrar la submuestra sin ejecutar el conteo')
+    ap.add_argument('--rehacer', action='store_true',
+                    help='ignorar lo ya medido y empezar de cero')
     args = ap.parse_args()
 
     sel = muestra(args.por_tramo)
@@ -241,10 +243,29 @@ def main():
     piso = area_minima_fisica()
     print(f'Area minima: {piso:.0f} px2, equivalente a una colonia de '
           f'{DIAM_MINIMO_MM} mm')
+
+    # Se reanuda lo ya medido. Cada placa cuesta minutos sobre procesador, de
+    # modo que poder relanzar la corrida con otra asignacion de nucleos sin
+    # repetir trabajo es la diferencia entre ajustarla y no tocarla.
+    filas, areas = [], []
+    hechas = set()
+    previo = salida / f'{nombre}.csv'
+    if previo.exists() and not args.rehacer:
+        d = pd.read_csv(previo)
+        d = d[d.estado == 'ok']
+        filas = d.to_dict('records')
+        hechas = set(d.image_name)
+        pa = salida / f'{nombre}_areas.csv'
+        if pa.exists():
+            areas = pd.read_csv(pa).to_dict('records')
+        if hechas:
+            print(f'Se reanudan {len(hechas)} placas ya medidas.')
+
     print(f'{"placa":<18} {"tramo":<9} {"real":>6} {"contado":>8} {"error":>7}')
     print('-' * 52)
-    filas, areas = [], []
     for _, f in sel.iterrows():
+        if f.image_name in hechas:
+            continue
         ruta = DATOS / 'imagenes' / f.image_name
         if not ruta.exists():
             filas.append({**f.to_dict(), 'contado': None,
