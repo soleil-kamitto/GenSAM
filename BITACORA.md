@@ -606,6 +606,145 @@ fijado con la curva de recuperación.
 
 ---
 
+## Fase 12. Revisión de literatura, septiembre de 2026
+
+Se revisó el estado del arte justo después de implementar la inferencia por
+mosaico, y el resultado obliga a reubicar la aportación.
+
+### La idea del mosaico ya está publicada, y funciona
+
+Un artículo de 2026 en *Scientific Reports* hace exactamente lo mismo, con el
+mismo razonamiento: los detectores fallan porque la imagen de alta resolución se
+reduce a 640 × 640 y las colonias pequeñas desaparecen. Parten la imagen en
+baldosas de 640 × 640 con un 20 % de solape, que es casi la configuración que se
+eligió aquí de forma independiente.
+
+| Inferencia | mAP@0.5 |
+|------------|---------|
+| Redimensionando la placa entera | 44,9 a 66,3 % |
+| **Por baldosas** | **95,4 a 96,9 %** |
+
+El salto es enorme y **confirma el razonamiento físico** de que el problema está
+en la reducción de escala, no en el detector. También significa que el mosaico
+**no puede presentarse como aportación propia**, sino como una técnica conocida
+que se adopta y se cita.
+
+Tres detalles agravan la coincidencia: usan fotografías de teléfono, de tres
+modelos distintos, y explícitamente «sin iluminación normalizada ni protocolo
+estricto de posicionamiento». Es el mismo escenario de laboratorio sin
+presupuesto que motiva este trabajo.
+
+### El uso de modelos fundacionales también
+
+*Colony Grounded SAM2* combina Grounding DINO con SAM 2 para detectar y
+segmentar colonias prácticamente sin entrenamiento, con 93,1 % de precisión
+media sobre el conjunto ADBC. No trata actinomicetos ni organismos filamentosos.
+
+### Dónde queda entonces la aportación
+
+Lo valioso está en lo que esos trabajos declaran como pendiente, porque coincide
+punto por punto con lo que aquí ya está medido:
+
+| Lo que ellos dejan pendiente | Lo que aquí hay |
+|------------------------------|-----------------|
+| «validación externa en distintos laboratorios y dispositivos» | El hallazgo central: tres parámetros calibrados en un montaje fallan en otro, y la auto-calibración que lo corrige |
+| «evaluación sobre un único conjunto público» | Tres lotes propios, de captura independiente, con conteo manual |
+| «detección por caja en lugar de segmentación de instancias» | CellSAM da segmentación de instancias |
+| «las colonias densamente agrupadas del centro se pierden» | La separación por cuencas de `separar_pegadas.py` |
+| Ninguno trata actinomicetos | El objeto de estudio de este trabajo |
+
+La conclusión práctica es que **el método no es la aportación, la
+transferibilidad sí**. Nadie ha demostrado que un contador entrenado o ajustado
+en un laboratorio siga funcionando en otro con otro teléfono y otra luz, y aquí
+está medido que no, con las tres formas concretas en que falla.
+
+### Conjunto de datos que conviene incorporar
+
+ADBC, publicado en *Scientific Data* en 2023, tiene 369 placas de 24 especies
+con 56.865 colonias anotadas, tomadas con tres teléfonos distintos y sin
+iluminación normalizada. Está libre en Figshare. Sirve para dos cosas: validar
+el pipeline sobre capturas de otro laboratorio, que es justo lo que se quiere
+demostrar, y como precedente de que un artículo de conjunto de datos con este
+material entra en *Scientific Data*.
+
+**Referencias.**
+
+- Overcoming resolution constraints in automated colony counting via a
+  high-performance deep learning framework using SAHI. *Scientific Reports*,
+  2026. https://www.nature.com/articles/s41598-026-55724-1
+- Colony Grounded SAM2: Zero-shot detection and segmentation of bacterial
+  colonies using foundation models. arXiv:2603.13393
+- Annotated dataset for deep-learning-based bacterial colony detection.
+  *Scientific Data*, 2023. https://www.nature.com/articles/s41597-023-02404-8
+- Enhancing Colony Detection of Microorganisms in Agar Dishes Using SAM-Based
+  Synthetic Data Augmentation in Low-Data Scenarios. *Applied Sciences*, 2025.
+  https://doi.org/10.3390/app15031260
+- AGAR, a microbial colony dataset for deep learning detection. arXiv:2108.01234
+
+---
+
+## Fase 13. Validación externa con ADBC
+
+Se descargó el conjunto ADBC (`scripts/bajar_adbc.py`), 369 placas de 24
+especies con 56.865 colonias anotadas, tomadas con tres teléfonos distintos y
+sin iluminación normalizada, con licencia CC BY 4.0. Es la validación externa
+que los trabajos recientes declaran como pendiente.
+
+### Qué tiene dentro
+
+| Densidad, colonias por placa | Placas | Proporción |
+|------------------------------|-------:|-----------:|
+| 1 a 10 | 39 | 10,6 % |
+| 11 a 30 | 52 | 14,1 % |
+| 31 a 60 | 51 | 13,8 % |
+| 61 a 150 | 100 | 27,1 % |
+| 151 a 250 | 52 | 14,1 % |
+| Más de 250, incontables | 75 | 20,3 % |
+
+La mediana es de 108 colonias por placa y el máximo 747, de modo que **es un
+conjunto bastante más denso que el de este trabajo**, donde las placas rondan
+las 20 colonias. Eso lo convierte en una prueba exigente y no en una
+confirmación cómoda.
+
+Un dato que conviene citar en el capítulo: **hay 344 tamaños de imagen
+distintos en 369 placas**. Casi cada fotografía tiene su propia resolución, que
+es justamente el desorden de captura que este trabajo sostiene que hay que
+tolerar en vez de corregir con protocolo.
+
+### Predicción registrada antes de ejecutar
+
+Se deja escrita por adelantado para que el resultado pueda contradecirla. Al
+reducir la placa a los 1024 píxeles que CellSAM usa internamente, el diámetro de
+la colonia mediana queda así:
+
+| Densidad | Diámetro tras reducir |
+|----------|----------------------:|
+| 1 a 10 | 38,8 px |
+| 11 a 30 | 33,5 px |
+| 31 a 60 | 36,1 px |
+| 61 a 150 | 30,0 px |
+| 151 a 250 | 26,0 px |
+| Más de 250 | **19,3 px** |
+
+Los detectores pierden fiabilidad por debajo de unos 15 a 20 px, y el 57 % de
+las placas incontables caen bajo ese umbral.
+
+> **Predicción.** La inferencia por mosaico debe mejorar el conteo en las placas
+> densas y resultar indiferente, o levemente peor por fragmentación, en las
+> ralas. Si el resultado sale al revés, el razonamiento físico sobre la
+> reducción de escala es incorrecto y hay que abandonarlo.
+
+### Limitación de cómputo
+
+No hay GPU disponible, y CellSAM sobre procesador tarda del orden de minutos por
+placa, de modo que las 369 no son viables. Se trabaja sobre una **submuestra
+estratificada** con el mismo número de placas por tramo de densidad, elegida con
+semilla fija para que sea reproducible. Estratificar y no muestrear al azar
+importa aquí, porque el efecto que se quiere medir depende justamente de la
+densidad.
+
+---
+
 ## Estado actual
 
 **Mejor configuración.** CellSAM base con recorte al 92 % del radio, corrección

@@ -43,6 +43,74 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 
 
+def _moda_circular(tonos):
+    """Casilla mas poblada de un histograma de tono suavizado en circulo."""
+    t = np.asarray(tonos, dtype=np.int32).ravel()
+    if t.size == 0:
+        return 0.0
+    h = np.bincount(t, minlength=180)[:180].astype(np.float32)
+    # el suavizado evita que un pico repartido entre dos casillas vecinas
+    # pierda frente a otro mas estrecho
+    nucleo = np.array([1, 2, 3, 2, 1], dtype=np.float32)
+    nucleo /= nucleo.sum()
+    suave = np.convolve(np.concatenate([h[-2:], h, h[:2]]), nucleo, 'valid')
+    return float(np.argmax(suave))
+
+
+def tono_dominante(tonos, saturaciones=None, valores=None):
+    """
+    Tono del agar, tomado sobre el circulo y solo donde el tono significa algo.
+
+    La mediana no sirve para un angulo. Si el agar reparte sus tonos entre 175 y
+    5, cruzando la costura de la escala, la mediana cae cerca de 90, que es un
+    verde inexistente en la imagen. Se toma en su lugar la moda de un histograma
+    circular, que ademas es mas robusta, porque el agar ocupa la mayor parte del
+    disco y domina el reparto aunque haya colonias y rotulacion.
+
+    Queda un problema, y hay dos maneras de equivocarse al resolverlo, las dos
+    comprobadas sobre las placas propias.
+
+    En un pixel gris o negro el tono no significa nada y la conversion lo deja
+    en cero, de modo que esos pixeles se amontonan en la primera casilla y
+    pueden ganarla sin que haya ningun rojo en la imagen. Medido: en una placa
+    con una zona oscura amplia la moda daba 0 frente a 46 de la mediana.
+
+    Pesar cada pixel por su saturacion corrige ese caso pero abre el contrario,
+    porque una region pequena e intensamente coloreada le gana entonces a un
+    agar grande y palido. Medido: en una placa doble con contraluz la moda
+    ponderada daba 21, un naranja, frente a 87 de la mediana.
+
+    Lo que funciona es descartar los pixeles donde el tono no esta definido y
+    contar por area los que quedan, de modo que gane la superficie mayor y no la
+    mas vistosa. El piso de saturacion se toma de la propia imagen, porque una
+    fotografia palida entera no debe quedarse sin pixeles validos.
+
+    Comprobado sobre veinte placas de cuatro procedencias: coincide con la
+    mediana dentro de un grado en todas las placas propias, arregla el caso de
+    la zona oscura, y sobre los agares de sangre de ADBC, cuyo tono cae en 177 a
+    179 justo en la costura, devuelve el valor correcto donde la mediana no
+    podria. Dentro de un mismo montaje resulta ademas mas consistente que la
+    mediana, con ocho grados de dispersion frente a veintitres.
+    """
+    t = np.asarray(tonos, dtype=np.int32).ravel()
+    if t.size == 0:
+        return 0.0
+    if saturaciones is None:
+        return _moda_circular(t)
+
+    s = np.asarray(saturaciones, dtype=np.float32).ravel()
+    v = (np.asarray(valores, dtype=np.float32).ravel()
+         if valores is not None else np.full_like(s, 255.0))
+
+    piso = max(20.0, float(np.median(s)) * 0.5)
+    definido = (s >= piso) & (v >= 25.0)
+    if definido.sum() < max(100, int(0.02 * t.size)):
+        definido = s >= 20.0          # imagen palida, se relaja el criterio
+    if definido.sum() < 100:
+        return _moda_circular(t)      # sin color utilizable, se usa todo
+    return _moda_circular(t[definido])
+
+
 def medir_condiciones(crop_bgr, plate_mask):
     """
     Describe las condiciones de captura de una fotografia de placa.
@@ -67,7 +135,9 @@ def medir_condiciones(crop_bgr, plate_mask):
         'contraste': float(gris[dentro].std()),
         'gradiente': float(np.percentile(fondo[dentro], 95)
                            - np.percentile(fondo[dentro], 5)),
-        'hue_agar': float(np.median(hsv[..., 0][dentro])),
+        'hue_agar': tono_dominante(hsv[..., 0][dentro],
+                                   hsv[..., 1][dentro],
+                                   hsv[..., 2][dentro]),
         'sat_agar': float(np.median(hsv[..., 1][dentro])),
         'brillo': float(np.median(gris[dentro])),
         'ruido': float(detalle[dentro].std()),
@@ -128,6 +198,27 @@ def calibrar(crop_bgr, plate_mask):
     }
 
 
+def desvio_circular(tonos, referencia):
+    """
+    Distancia de cada tono a la referencia, contada sobre el circulo.
+
+    El matiz es un angulo, de modo que en la escala de OpenCV, de 0 a 179, el
+    valor 179 esta pegado al 0 y no a 90. Restar sin mas es correcto mientras el
+    agar quede lejos de esa costura, y falla por completo cuando no.
+
+    El fallo se encontro al pasar el pipeline a placas ajenas. Los agares de
+    sangre tienen el tono del agar en 178 o en 6, es decir justo en la costura,
+    y una colonia de tono 2 dista 4 grados del agar de tono 178 pero la resta
+    directa da 176. El filtro la tomaba por rotulacion y la descartaba. En las
+    fotografias propias esto nunca se manifesto porque su agar esta en 41 a 56,
+    lejos de la costura, que es un buen ejemplo de error latente que solo
+    aparece al cambiar de laboratorio.
+    """
+    d = (np.asarray(tonos, dtype=np.float32) - float(referencia) + 90.0) \
+        % 180.0 - 90.0
+    return np.abs(d)
+
+
 def es_tinta(hsv, label_mask, label, hue_agar, sat_minima, desvio=18.0):
     """
     Decide si una region corresponde a rotulacion con marcador.
@@ -138,19 +229,21 @@ def es_tinta(hsv, label_mask, label, hue_agar, sat_minima, desvio=18.0):
     mediana 44 con percentil 90 en 86, mientras que una colonia real da mediana
     41 con percentil 90 en 42, es decir ambos valores juntos.
 
-    Se rechaza entonces cuando la mediana se aparta del agar, que es el caso de
-    la tinta limpia, o cuando lo hace el percentil 90, que es el caso de la
-    region contaminada. Una colonia que toque la escritura se descarta tambien,
-    lo cual es razonable porque en ese caso no se puede separar una de otra.
+    Se rechaza entonces cuando la desviacion tipica de la region se aparta del
+    agar, que es el caso de la tinta limpia, o cuando lo hace su decil superior,
+    que es el caso de la region contaminada. Una colonia que toque la escritura
+    se descarta tambien, lo cual es razonable porque en ese caso no se puede
+    separar una de otra.
+
+    Ambos estadisticos se calculan sobre la distancia circular, por el motivo
+    explicado en desvio_circular.
     """
     region = label_mask == label
-    tonos = hsv[..., 0][region]
     s = float(np.median(hsv[..., 1][region]))
     if s < sat_minima:
         return False
-    mediana = float(np.median(tonos))
-    alto = float(np.percentile(tonos, 90))
-    return abs(mediana - hue_agar) > desvio or abs(alto - hue_agar) > desvio
+    d = desvio_circular(hsv[..., 0][region], hue_agar)
+    return float(np.median(d)) > desvio or float(np.percentile(d, 90)) > desvio
 
 
 def _inspeccionar():
