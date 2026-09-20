@@ -213,22 +213,61 @@ def generar_una(fondos, parches, rng, densidad):
     centro = (w // 2, h // 2)
     radio_util = int(min(h, w) / 2 * 0.93)
 
+    # Agrupamiento espacial. En una placa real las colonias no caen al azar: se
+    # concentran donde la siembra deposito mas material, siguen el trazo del asa
+    # o se agrupan alrededor de una gota. Un sorteo independiente produce una
+    # distribucion demasiado regular, que fue una de las carencias detectadas al
+    # revisar las primeras placas generadas.
+    #
+    # Se modela con un proceso de agregados: unos pocos focos repartidos por la
+    # placa, y cada colonia cae cerca de un foco con dispersion aleatoria. Una
+    # fraccion se siembra de forma uniforme, porque tampoco todas las colonias
+    # forman grupos.
+    n_focos = max(1, int(rng.uniform(2, 7)))
+    focos = []
+    for _ in range(n_focos):
+        a = rng.uniform(0, 2 * np.pi)
+        d = radio_util * np.sqrt(rng.random())
+        focos.append((centro[0] + d * np.cos(a), centro[1] + d * np.sin(a)))
+    dispersion = radio_util * rng.uniform(0.10, 0.35)
+    frac_agrupada = rng.uniform(0.3, 0.85)
+
     colocadas = []
     intentos = 0
+    gauss = np.random.default_rng(rng.randrange(2 ** 32))
     while len(colocadas) < densidad and intentos < densidad * 40:
         intentos += 1
-        ang = rng.uniform(0, 2 * np.pi)
-        # raiz cuadrada para repartir de forma uniforme por area, no por radio
-        rad = radio_util * np.sqrt(rng.random())
-        cx = int(centro[0] + rad * np.cos(ang))
-        cy = int(centro[1] + rad * np.sin(ang))
+        if rng.random() < frac_agrupada:
+            fx, fy = focos[rng.randrange(len(focos))]
+            cx = int(fx + gauss.normal(0, dispersion))
+            cy = int(fy + gauss.normal(0, dispersion))
+            # descarta lo que se salga del disco util
+            if np.hypot(cx - centro[0], cy - centro[1]) > radio_util:
+                continue
+        else:
+            ang = rng.uniform(0, 2 * np.pi)
+            # raiz cuadrada para repartir de forma uniforme por area, no por radio
+            rad = radio_util * np.sqrt(rng.random())
+            cx = int(centro[0] + rad * np.cos(ang))
+            cy = int(centro[1] + rad * np.sin(ang))
 
         parche = parches[rng.randrange(len(parches))]
-        escala = rng.uniform(0.7, 1.35)
+        # rango de tamanos amplio y sesgado hacia lo pequeno, porque en una
+        # placa real conviven colonias de edades distintas y las jovenes son
+        # mas numerosas. Un rango estrecho fue una de las carencias detectadas
+        escala = float(np.exp(rng.uniform(np.log(0.45), np.log(2.2))))
         lado = int(parche.shape[0] * escala) // 2 * 2
         if lado < 12:
             continue
         p = cv2.resize(parche, (lado, lado), interpolation=cv2.INTER_AREA)
+        # rotacion libre, ademas del volteo. Con un catalogo de unos cientos de
+        # parches y decenas de miles de colonias por generar, cada recorte se
+        # reutiliza muchas veces; rotarlo evita que el mismo objeto aparezca
+        # siempre identico y que el modelo memorice apariencias concretas
+        ang = rng.uniform(0, 360)
+        M = cv2.getRotationMatrix2D((lado / 2, lado / 2), ang, 1.0)
+        p = cv2.warpAffine(p, M, (lado, lado), flags=cv2.INTER_LINEAR,
+                           borderMode=cv2.BORDER_REPLICATE)
         if rng.random() < 0.5:
             p = cv2.flip(p, rng.randrange(-1, 2))
         r = lado // 2
@@ -267,8 +306,10 @@ def variar_captura(img, mask, rng):
     h, w = out.shape[:2]
 
     # balance de blancos: se escalan los canales por separado
+    # rango acotado respecto a la primera version, que llegaba a producir placas
+    # de tono rosado sin correspondencia con ninguna fotografia plausible
     for c in range(3):
-        out[..., c] *= rng.uniform(0.82, 1.18)
+        out[..., c] *= rng.uniform(0.90, 1.10)
 
     # gradiente de iluminacion desde un punto cualquiera de la placa
     gy, gx = np.mgrid[0:h, 0:w].astype(np.float32)

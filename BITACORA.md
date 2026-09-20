@@ -430,6 +430,100 @@ no transfieren a otro.
 
 ---
 
+## Fase 10. Tercer lote y el problema de la rotulación
+
+Diez placas nuevas, la serie `RC73`, fotografiadas con mejor iluminación que los
+lotes anteriores. La investigadora conserva el conteo manual sin comunicarlo, de
+modo que **todo el desarrollo de esta fase se hizo a ciegas**. Esa restricción
+resultó útil, porque obliga a justificar cada decisión por su fundamento y no
+por el número que produce, que es justamente la crítica habitual al ajuste de
+parámetros sobre el conjunto de prueba.
+
+### El obstáculo: la rotulación con marcador
+
+Estas placas están rotuladas a mano sobre el plástico, y el detector propone
+regiones sobre los trazos igual que sobre las colonias. En las placas más
+escritas llegó a proponer más trazos que colonias, hasta 28 frente a 14, de modo
+que sin tratar la rotulación el conteo **se duplicaba**.
+
+Costó cinco intentos, y los tres primeros fallaron por el mismo motivo.
+
+| Intento | Criterio | Total | Qué falló |
+|---------|----------|-------|-----------|
+| 1 | Rango de tono fijo, 60 a 140 | 343 | El tono del marcador varía entre placas |
+| 2 | Tono del agar medido, saturación ≥ 1.5 × la del agar | 260 | En agar saturado el umbral sube tanto que deja pasar la tinta |
+| 3 | Saturación ≥ 0.9 × la del agar, mediana del tono | 192 | Descartaba colonias reales junto a la tinta |
+| 4 | Mediana **y** percentil 90 del tono | 192 | Correcto, pero descarta la colonia que toca un trazo |
+| 5 | **Eliminar la tinta antes de segmentar** | 206 | Ver abajo |
+
+**Por qué los cuatro primeros comparten el mismo defecto.** Todos filtran
+*después* de detectar, y eso obliga a decidir sobre regiones que montan a medias
+sobre la escritura, donde la estadística de color es ambigua por construcción. Si
+una colonia toca un trazo, el detector las une en una sola región y ya no hay
+forma de separarlas: o se descartan ambas o se aceptan ambas.
+
+**La solución.** Quitar la tinta antes de segmentar, con inpainting de Telea
+(`scripts/quitar_rotulacion.py`). Es legítimo porque la rotulación está sobre el
+plástico y no en el agar, así que es una oclusión del recipiente y no parte de la
+muestra; lo que se reconstruye debajo es agar, que es liso y predecible. El
+detector deja de proponer nada sobre ella, y la colonia vecina se detecta limpia.
+El filtro por región se conserva como red de seguridad, y en 9 de 10 placas pasó
+a descartar cero, lo que confirma que la eliminación previa hizo el trabajo.
+
+**El efecto secundario, y su corrección.** La placa RC73-8 pasó de 6 a 15
+colonias tras la eliminación, en dirección contraria a lo esperado. La inspección
+visual de `RC73-8_count.png` mostró la causa: el inpainting dejaba **muescas
+dentadas en el borde de la placa**, que el detector tomaba por colonias, unas
+diez. Ocurre porque allí el trazo está pegado al límite del recorte y el
+algoritmo no tiene vecindario válido del que copiar.
+
+La corrección es no pretender reconstruir lo irreconstruible. La rotulación que
+toca el borde **se excluye del área analizada** en lugar de rellenarse, con lo
+que ni se reconstruye mal ni se cuenta. El coste es perder una franja estrecha
+del borde donde, de todos modos, la escritura impide ver si hay colonias.
+
+### Conceptos físicos aplicados al preprocesamiento
+
+**Estimación del fondo por morfología** (`scripts/preproceso_fisico.py`). El
+desenfoque gaussiano que se usaba hasta aquí se contamina con las propias
+colonias, porque promedia todo lo que hay en la ventana. Una apertura en escala
+de grises con un elemento mayor que la colonia más grande elimina los objetos
+claros por construcción, así que estima el agar sin mezclarlo con lo que se
+quiere medir.
+
+El radio se eligió midiendo la rugosidad del fondo resultante, no a ojo:
+
+| Radio | Rugosidad del fondo |
+|-------|---------------------|
+| 55 | 0,103 |
+| 80 | 0,039 |
+| **110** | **0,018** |
+| 150 | 0,013 |
+
+A partir de 110 px la mejora se aplana, de modo que se fija ahí: es el menor
+radio que ya separa el fondo de las colonias.
+
+**Densidad óptica por Beer-Lambert.** La luz que atraviesa una colonia cae de
+forma exponencial con su biomasa, así que el logaritmo de la razón entre imagen y
+fondo, `OD = -log10(I/I0)`, es proporcional a esa biomasa. Corrige la
+iluminación y linealiza la respuesta en un solo paso, y da más contraste a las
+colonias tenues que la imagen cruda.
+
+### Consenso entre umbrales, sin conocer la respuesta
+
+Sin conteo manual no hay forma de elegir un umbral mirando el resultado, y
+elegirlo a ojo sería arbitrario. El consenso evita esa elección: se corre el
+detector con cuatro umbrales, de 0,30 a 0,60, y se conserva cada colonia que
+aparece en al menos la mitad de las corridas. Una detección estable entre
+configuraciones es probablemente una colonia; una que solo aparece con el umbral
+más permisivo es probablemente ruido.
+
+Es el mismo principio de la votación entre modelos, aplicado a un solo modelo con
+distintas sensibilidades, y **no requiere conocer la respuesta**, lo que lo hace
+apropiado para un laboratorio que estrena el sistema.
+
+---
+
 ## Estado actual
 
 **Mejor configuración.** CellSAM base con recorte al 92 % del radio, corrección

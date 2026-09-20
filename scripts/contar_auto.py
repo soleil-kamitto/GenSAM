@@ -43,6 +43,8 @@ from contar_mis_fotos import (
     MIN_COLONY_AREA, MAX_COLONY_AREA, MIN_SOLIDITY, SUPPORTED,
 )
 from autocalibrar import calibrar, es_tinta
+from quitar_rotulacion import limpiar_rotulacion
+from preproceso_fisico import densidad_optica
 from cellSAM import get_model, segment_cellular_image
 
 
@@ -74,6 +76,8 @@ def main():
     ap.add_argument('imagenes', nargs='?', default='images/mis_fotos_lote3')
     ap.add_argument('--comparar', action='store_true',
                     help='ejecutar tambien el pipeline de parametros fijos')
+    ap.add_argument('--densidad-optica', action='store_true',
+                    help='usar densidad optica como entrada al modelo')
     args = ap.parse_args()
 
     origen = Path(args.imagenes)
@@ -89,7 +93,7 @@ def main():
     print('Listo.\n')
 
     cab = (f'{"placa":<14} {"umbral":>7} {"flat":>5} {"hue":>5} {"conteo":>7} '
-           f'{"tinta":>6}')
+           f'{"tinta":>6} {"%rotul":>7}')
     if args.comparar:
         cab += f' {"fijo":>6}'
     print(cab)
@@ -102,9 +106,28 @@ def main():
         crop, mascara = crop_plate(img, cx, cy, r)
 
         par = calibrar(crop, mascara)
-        entrada = flat_field(crop, mascara) if par['aplicar_flat'] else crop
+
+        # La rotulacion se elimina antes de segmentar, no despues. Filtrarla a
+        # posteriori obliga a decidir sobre regiones que montan a medias sobre
+        # el trazo, y descarta enteras las colonias que lo tocan. Quitandola
+        # primero, el detector no llega a proponer nada sobre ella.
+        limpio, mascara_tinta, mascara = limpiar_rotulacion(
+            crop, mascara, par['hue_agar'])
+        pct_tinta = 100.0 * mascara_tinta.sum() / max(1, (mascara > 0).sum())
+
+        # Entrada al modelo en densidad optica. Por Beer-Lambert la luz que
+        # atraviesa la colonia cae de forma exponencial con su biomasa, asi que
+        # el logaritmo de la razon entre imagen y fondo es proporcional a esa
+        # biomasa. Eso corrige la iluminacion y linealiza en un solo paso, y da
+        # mas contraste a las colonias tenues que la imagen cruda.
+        #
+        # El fondo se estima por morfologia y no por desenfoque, para que no se
+        # contamine con las propias colonias.
+        entrada = densidad_optica(limpio, mascara) if args.densidad_optica             else (flat_field(limpio, mascara) if par['aplicar_flat'] else limpio)
+        # el filtro por region se conserva como red de seguridad, sobre la
+        # imagen ya limpia deberia descartar muy poco
         seg, validas, n_tinta = segmentar(
-            model, entrada, crop, mascara,
+            model, entrada, limpio, mascara,
             par['umbral'], par['hue_agar'], par['sat_minima'])
         n_auto = len(validas)
 
@@ -112,11 +135,13 @@ def main():
                 'umbral': round(par['umbral'], 3),
                 'flat_field': par['aplicar_flat'],
                 'hue_agar': par['hue_agar'],
+                'pct_rotulacion': round(pct_tinta, 2),
                 'descartadas_tinta': n_tinta}
 
         linea = (f'{ruta.stem:<14} {par["umbral"]:>7.2f} '
                  f'{"si" if par["aplicar_flat"] else "no":>5} '
-                 f'{par["hue_agar"]:>5.0f} {n_auto:>7} {n_tinta:>6}')
+                 f'{par["hue_agar"]:>5.0f} {n_auto:>7} {n_tinta:>6} '
+                 f'{pct_tinta:>7.1f}')
 
         if args.comparar:
             plano = flat_field(crop, mascara)

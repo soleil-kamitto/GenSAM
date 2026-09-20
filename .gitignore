@@ -75,3 +75,11 @@ notebooks/*.pdf
 
 # paquetes armados para Colab
 *_colab.zip
+
+# pesos de modelos, se descargan solos
+yolov8n.pt
+*.pt
+
+# artefactos de Windows y borradores del capitulo fuera de docs/
+desktop.ini
+Draft*.docx

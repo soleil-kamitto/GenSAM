@@ -108,10 +108,16 @@ def calibrar(crop_bgr, plate_mask):
     aplicar_flat = c['gradiente'] > 110.0
 
     # Filtro de rotulacion. En vez de un rango fijo de tono, se toma el del agar
-    # de esta misma fotografia y se rechaza lo que se aparta de el. La
-    # saturacion minima se fija por encima de la del propio agar, para no
-    # descartar colonias, que comparten tono con el medio.
-    sat_minima = max(35.0, c['sat_agar'] * 1.5)
+    # de esta misma fotografia y se rechaza lo que se aparta de el.
+    #
+    # La saturacion actua solo como salvaguarda, para no descartar regiones
+    # grises o sin color definido. Una version anterior exigia 1.5 veces la
+    # saturacion del agar, y fallaba: en fotografias donde el propio agar es
+    # saturado el umbral se iba por encima de 80 y dejaba pasar la rotulacion.
+    # Medido sobre RC73-7, las colonias se agrupan en tono 41 a 45 y la tinta en
+    # 67 a 100, de modo que el tono separa por si solo y la saturacion no debe
+    # estorbar esa separacion.
+    sat_minima = max(30.0, c['sat_agar'] * 0.9)
 
     return {
         'umbral': umbral,
@@ -123,11 +129,28 @@ def calibrar(crop_bgr, plate_mask):
 
 
 def es_tinta(hsv, label_mask, label, hue_agar, sat_minima, desvio=18.0):
-    """Version del filtro de rotulacion que usa el tono medido en la imagen."""
+    """
+    Decide si una region corresponde a rotulacion con marcador.
+
+    Usa dos estadisticos del tono, no solo la mediana, porque una region que
+    monta a medias sobre la escritura tiene mediana parecida a la del agar y aun
+    asi es mayormente tinta. Medido sobre RC73-8, esas regiones mixtas dan
+    mediana 44 con percentil 90 en 86, mientras que una colonia real da mediana
+    41 con percentil 90 en 42, es decir ambos valores juntos.
+
+    Se rechaza entonces cuando la mediana se aparta del agar, que es el caso de
+    la tinta limpia, o cuando lo hace el percentil 90, que es el caso de la
+    region contaminada. Una colonia que toque la escritura se descarta tambien,
+    lo cual es razonable porque en ese caso no se puede separar una de otra.
+    """
     region = label_mask == label
-    h = float(np.median(hsv[..., 0][region]))
+    tonos = hsv[..., 0][region]
     s = float(np.median(hsv[..., 1][region]))
-    return abs(h - hue_agar) > desvio and s >= sat_minima
+    if s < sat_minima:
+        return False
+    mediana = float(np.median(tonos))
+    alto = float(np.percentile(tonos, 90))
+    return abs(mediana - hue_agar) > desvio or abs(alto - hue_agar) > desvio
 
 
 def _inspeccionar():
