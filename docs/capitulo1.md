@@ -226,7 +226,27 @@ Esta sección reúne el hallazgo central del trabajo. Cada uno de los cuatro cas
 | 151 a 250 | 10.532 | 22,9 % |
 | Más de 250 | 31.722 | **40,6 %** |
 
-**La solución adoptada.** En los cuatro casos la corrección sigue el mismo principio, que consiste en sustituir la constante por una regla derivada de propiedades medibles de la propia fotografía o de la geometría conocida del problema. El umbral de detección se deriva de cuánto se aparta la imagen de su propio fondo suavizado, el matiz de referencia se mide en el agar de cada fotografía, y el área mínima se declara en milímetros y se traduce a píxeles usando el hecho de que una placa de Petri normalizada mide 90 mm de diámetro. Conviene advertir que la regla del umbral se apoya por ahora en solo dos montajes medidos, de modo que es una hipótesis operativa y no un resultado consolidado, y su validación con fotografías de otros laboratorios queda pendiente.
+**La solución adoptada.** En los cuatro casos la corrección sigue el mismo principio, que consiste en sustituir la constante por una regla derivada de propiedades medibles de la propia fotografía o de la geometría conocida del problema. El umbral de detección se deriva de cuánto se aparta la imagen de su propio fondo suavizado, el matiz de referencia se mide en el agar de cada fotografía, y el área mínima se declara en milímetros y se traduce a píxeles usando el hecho de que una placa de Petri normalizada mide 90 mm de diámetro.
+
+**Una de esas reglas tampoco transfiere, y conviene decirlo.** La regla del umbral se ajustó con solo dos montajes medidos, de modo que en el propio código quedó una advertencia de que dos puntos no bastan para fijar una recta general. El conjunto ADBC es el tercer montaje y confirma esa advertencia, tal como muestra la **Tabla 1.9**. Sobre veinte placas de ADBC, diez reciben el valor mínimo de 0,35, que es el extremo permisivo del rango, y no se observa relación entre el umbral asignado y la densidad real de la placa, ya que una placa de 221 colonias recibe el umbral más permisivo mientras que otra de 31 recibe uno estricto. Cuando una regla adaptativa se pega a su límite en la mitad de los casos deja de ser adaptativa, porque se comporta igual que la constante que venía a sustituir.
+
+**Tabla 1.9. Umbral que la regla adaptativa asigna a placas de ADBC.**
+
+| Placa | Colonias anotadas | Relieve medido | Umbral asignado |
+|-------|------------------:|---------------:|----------------:|
+| sp08_img09 | 35 | 5,3 | 0,35 |
+| sp06_img22 | 144 | 10,3 | 0,35 |
+| sp16_img13 | 221 | 14,1 | 0,35 |
+| sp02_img01 | 31 | 27,1 | 0,70 |
+| sp21_img29 | 158 | 27,8 | 0,73 |
+
+Este resultado se presenta sin corregirlo, y esa decisión merece explicación. Reajustar la recta sobre ADBC produciría cifras mejores de inmediato, pero sería exactamente el sobreajuste que este trabajo critica, y la regla resultante quedaría igual de frágil ante un cuarto laboratorio. La salida correcta consiste en no elegir umbral, mediante un conteo por consenso que ejecuta el detector con varios umbrales y conserva las detecciones que aparecen en la mayoría de las corridas. Ese procedimiento está implementado, y su costo de cómputo, que multiplica por cuatro el tiempo, lo hace inviable sobre procesador en un conjunto de este tamaño, de modo que su evaluación queda como trabajo pendiente.
+
+### 1.4.2.1 El costo de cómputo como restricción práctica
+
+Se midió el tiempo de proceso de cada placa, y el perfil muestra que CellSAM consume prácticamente todo, mientras que el código propio aporta cuatro décimas de segundo. El tiempo no depende del número de colonias contadas sino de cuántas regiones candidatas propone el detector antes de aplicar los filtros, y esa cifra no es observable desde fuera, de modo que el costo de una placa no se puede anticipar. Las mediciones van de 4,3 minutos a 32,8 minutos en placas del rango contable, y una placa de 585 colonias superó las dos horas.
+
+Para el escenario que motiva este trabajo, esa cifra no es un detalle de implementación sino parte de la respuesta, porque un laboratorio sin unidad de procesamiento gráfico no puede analizar placas incontables en tiempo útil. Por lo tanto, el límite convencional de 250 colonias resulta ser también una restricción práctica, y conviene declararlo junto a la convención microbiológica porque es información que el usuario necesita antes de adoptar el sistema.
 
 ### 1.4.3 Dos errores que solo se manifiestan fuera del laboratorio de origen
 
@@ -248,9 +268,9 @@ El obstáculo principal de este lote fue la rotulación con marcador, que en las
 
 La solución consiste en eliminar la tinta antes de segmentar, mediante reconstrucción del área ocupada por el trazo. El procedimiento es legítimo porque la rotulación está escrita sobre el plástico de la placa y no en el agar, así que es una oclusión del recipiente y no parte de la muestra, y porque lo que se reconstruye debajo es agar, cuyo aspecto es liso y predecible. Hubo que añadir una salvaguarda, ya que la reconstrucción dejaba muescas dentadas en el borde de la placa, donde el algoritmo no dispone de vecindario válido del que copiar, y esas muescas añadían una decena de detecciones falsas en una de las placas. La rotulación que toca el borde se excluye entonces del área analizada en lugar de reconstruirse, con el costo de perder una franja estrecha donde de todos modos la escritura impide ver si hay colonias.
 
-Una vez resuelto ese obstáculo, el lote se contó con tres preprocesamientos de fundamento distinto, cuyos resultados aparecen en la **Tabla 1.9**. El primero usa la imagen directa, el segundo aplica densidad óptica según la ley de Beer-Lambert sobre un fondo estimado por morfología, y el tercero trocea la placa en baldosas solapadas a mayor resolución.
+Una vez resuelto ese obstáculo, el lote se contó con tres preprocesamientos de fundamento distinto, cuyos resultados aparecen en la **Tabla 1.10**. El primero usa la imagen directa, el segundo aplica densidad óptica según la ley de Beer-Lambert sobre un fondo estimado por morfología, y el tercero trocea la placa en baldosas solapadas a mayor resolución.
 
-**Tabla 1.9. Conteo del tercer lote con tres preprocesamientos distintos.**
+**Tabla 1.10. Conteo del tercer lote con tres preprocesamientos distintos.**
 
 | Placa | Imagen directa | Densidad óptica | Baldosas |
 |-------|---------------:|----------------:|---------:|
@@ -280,9 +300,9 @@ Antes de adoptarlo se aplicó como control negativo a las placas dobles del conj
 
 ### 1.4.6 Validación externa sobre ADBC
 
-La validación externa se realiza sobre el conjunto ADBC (Rodríguez et al., 2023), que reúne 369 fotografías de placas de 24 especies bacterianas con 56.865 colonias anotadas, tomadas con tres modelos de teléfono distintos y sin iluminación normalizada. Su composición por densidad aparece en la **Tabla 1.10**.
+La validación externa se realiza sobre el conjunto ADBC (Rodríguez et al., 2023), que reúne 369 fotografías de placas de 24 especies bacterianas con 56.865 colonias anotadas, tomadas con tres modelos de teléfono distintos y sin iluminación normalizada. Su composición por densidad aparece en la **Tabla 1.11**.
 
-**Tabla 1.10. Composición del conjunto ADBC por densidad de colonias.**
+**Tabla 1.11. Composición del conjunto ADBC por densidad de colonias.**
 
 | Colonias por placa | Placas | Proporción |
 |--------------------|-------:|-----------:|

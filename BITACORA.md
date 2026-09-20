@@ -840,6 +840,95 @@ densidad.
 
 ---
 
+## Fase 14. La regla del umbral tampoco transfiere
+
+Al aplicar la auto-calibración a las placas de ADBC apareció un resultado
+incómodo, porque el parámetro que falla esta vez es el de la solución propuesta
+en este mismo trabajo.
+
+### La medición
+
+El umbral de detección se calcula con una recta que se apoya en el relieve de la
+imagen, es decir en cuánto se aparta de su propio fondo suavizado. Esa recta se
+ajustó con dos montajes medidos, y en el propio código quedó una advertencia de
+que dos puntos no bastan para fijar una regla general. ADBC es el tercer montaje,
+y confirma la advertencia.
+
+| Placa | Colonias | Relieve | Umbral asignado |
+|-------|---------:|--------:|----------------:|
+| sp08_img09 | 35 | 5,3 | 0,35 |
+| sp06_img22 | 144 | 10,3 | 0,35 |
+| sp16_img13 | 221 | 14,1 | 0,35 |
+| sp21_img29 | 158 | 27,8 | 0,73 |
+| sp02_img01 | 31 | 27,1 | 0,70 |
+
+Sobre veinte placas de ADBC, **diez reciben el valor mínimo de 0,35**, que es el
+extremo permisivo del rango. Cuando una regla adaptativa se pega a su límite en
+la mitad de los casos deja de ser adaptativa, porque se comporta igual que la
+constante que venía a sustituir. Además no se observa relación entre el umbral
+asignado y la densidad real, ya que una placa de 221 colonias recibe el umbral
+más permisivo mientras que otra de 31 recibe uno estricto.
+
+### Qué se hace y qué no
+
+**No se reajusta la recta sobre ADBC.** Sería exactamente el sobreajuste que este
+trabajo critica, y la regla resultante quedaría igual de frágil ante un cuarto
+laboratorio. Reconocer el límite vale más que disimularlo con una constante
+mejor elegida.
+
+**La salida correcta es no elegir umbral.** El conteo por consenso, descrito en
+`scripts/contar_consenso.py`, ejecuta el detector con varios umbrales y conserva
+lo que aparece en la mayoría de las corridas, de modo que no necesita acertar con
+ninguno. Se había implementado para el tercer lote y su valor real se ve ahora,
+frente a un conjunto donde la regla del umbral se degenera. Su costo de cómputo,
+que multiplica por cuatro el tiempo, lo hace inviable sobre procesador en este
+conjunto, y queda como trabajo pendiente con GPU.
+
+### Costo de cómputo, que es también un resultado
+
+Se midió el tiempo de cada placa, y el perfil muestra que CellSAM se lleva el
+100 % del tiempo mientras que el código propio aporta cuatro décimas de segundo.
+
+| Placa | Regiones finales | Tiempo |
+|-------|-----------------:|-------:|
+| sp08_img09 | 27 | 4,3 min |
+| sp01_img04 | 13 | 21,8 min |
+| sp14_img12 | 22 | 32,8 min |
+
+El tiempo no depende del número de colonias contadas sino de cuántas regiones
+candidatas propone el detector antes de los filtros, y esa cifra no es observable
+desde fuera. Una placa de 585 colonias superó las dos horas.
+
+Para el escenario que motiva el trabajo esto no es un detalle de implementación.
+**Un laboratorio sin unidad de procesamiento gráfico no puede analizar placas
+incontables en tiempo útil**, de modo que el límite convencional de 250 colonias
+resulta ser también una restricción práctica. Conviene declararlo en el capítulo
+junto a la convención microbiológica, porque es información que el usuario
+necesita antes de instalar nada.
+
+### Resultados parciales sobre el rango contable
+
+Con ocho placas medidas, el error se mantiene pequeño hasta unas sesenta colonias
+y crece después, en la dirección del subconteo.
+
+| Anotadas | Contadas | Error |
+|---------:|---------:|------:|
+| 4 | 5 | +1 |
+| 5 | 13 | +8 |
+| 18 | 18 | 0 |
+| 26 | 22 | −4 |
+| 35 | 27 | −8 |
+| 54 | 55 | +1 |
+| 147 | 115 | −32 |
+| 158 | 149 | −9 |
+
+Ocho placas no permiten concluir, pero la dirección coincide con la predicción
+registrada en la fase 13, ya que el subconteo aparece justo donde las colonias
+quedan por debajo del tamaño que el detector resuelve tras la reducción de
+escala. La comparación con el mosaico dirá si esa explicación es correcta.
+
+---
+
 ## Estado actual
 
 **Mejor configuración.** CellSAM base con recorte al 92 % del radio, corrección
