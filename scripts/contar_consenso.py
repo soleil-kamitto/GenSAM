@@ -11,6 +11,13 @@ mas permisivo es probablemente ruido.
 Es el mismo principio que la votacion entre modelos, aplicado aqui sobre un solo
 modelo con distintas sensibilidades, y no requiere conocer la respuesta.
 
+Limite del metodo, que conviene tener presente. El consenso premia lo estable,
+y estable no es lo mismo que correcto. Un trazo de rotulador se detecta con los
+cuatro umbrales por igual, de modo que reune el consenso completo y la votacion
+lo confirma en lugar de descartarlo. Frente a un error sistematico la votacion
+no solo no ayuda, sino que lo respalda. Por eso la rotulacion se elimina antes
+de votar y no se deja en manos del filtro posterior.
+
 Preprocesamiento. Se usa la densidad optica descrita en
 scripts/preproceso_fisico.py, que estima la iluminacion con morfologia en lugar
 de desenfoque, para no contaminarla con las propias colonias, y aplica
@@ -47,6 +54,7 @@ from contar_mis_fotos import (
 )
 from preproceso_fisico import densidad_optica
 from autocalibrar import calibrar, es_tinta
+from quitar_rotulacion import limpiar_rotulacion
 from cellSAM import get_model, segment_cellular_image
 
 UMBRALES = [0.30, 0.40, 0.50, 0.60]
@@ -138,11 +146,17 @@ def main():
         cx, cy, r = detect_plate(img)
         crop, mascara = crop_plate(img, cx, cy, r)
         par = calibrar(crop, mascara)
-        entrada = densidad_optica(crop, mascara)
+
+        # La rotulacion se quita antes de votar, no despues. Si no, cada trazo
+        # se detecta con los cuatro umbrales por igual, de modo que reune el
+        # consenso completo y el mecanismo de votacion lo confirma en lugar de
+        # descartarlo: una deteccion estable no es lo mismo que una correcta.
+        limpio, _, mascara = limpiar_rotulacion(crop, mascara, par['hue_agar'])
+        entrada = densidad_optica(limpio, mascara)
 
         corridas = []
         for u in UMBRALES:
-            corridas.append(detectar(model, entrada, crop, mascara, u,
+            corridas.append(detectar(model, entrada, limpio, mascara, u,
                                      par['hue_agar'], par['sat_minima']))
 
         consenso, todos = votar(corridas, args.votos)
