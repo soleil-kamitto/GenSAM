@@ -548,6 +548,14 @@ Lo que **no** se puede afirmar a ciegas es cuál de las tres es la correcta. La
 conclusión defendible es más modesta y también más útil: la elección del
 preprocesamiento no domina el resultado, que era justamente la duda.
 
+**Nota metodológica sobre estas cifras.** El estimador del tono del agar se
+corrigió mientras estas corridas estaban en marcha, de modo que las de densidad
+óptica y mosaico mezclan código de antes y de después del cambio. Al repetir la
+variante de imagen directa con el código corregido, el total pasó de 193 a 194
+colonias, porque una sola placa cambió en una unidad. El efecto es por tanto del
+orden de una colonia por cada diez placas y no altera la conclusión, pero las
+tres variantes deben repetirse con el mismo código antes de publicar la tabla.
+
 ### Consenso entre umbrales, sin conocer la respuesta
 
 Sin conteo manual no hay forma de elegir un umbral mirando el resultado, y

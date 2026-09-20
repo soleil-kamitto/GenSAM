@@ -288,6 +288,65 @@ Una vez resuelto ese obstáculo, el lote se contó con tres preprocesamientos de
 
 Lo relevante es que los tres métodos convergen, ya que los totales son de 193, 204 y 192 colonias respectivamente, es decir una dispersión del 6.2 % entre el mayor y el menor. La diferencia mediana entre las tres variantes es de solo 2 colonias por placa, y la mayor discrepancia en una misma placa alcanza 4 colonias. Eso permite algo que normalmente exige disponer del conteo manual, porque proporciona una estimación de la incertidumbre del método. Lo que no puede afirmarse a ciegas es cuál de los tres acierta, y por eso la conclusión defendible es más modesta y también más útil, ya que la elección del preprocesamiento no domina el resultado.
 
+**Nota metodológica sobre estas cifras.** El estimador del tono del agar se
+corrigió mientras estas corridas estaban en marcha, de modo que las de densidad
+óptica y mosaico mezclan código de antes y de después del cambio. Al repetir la
+variante de imagen directa con el código corregido, el total pasó de 193 a 194
+colonias, porque una sola placa cambió en una unidad. El efecto es por tanto del
+orden de una colonia por cada diez placas y no altera la conclusión, pero las
+tres variantes deben repetirse con el mismo código antes de publicar la tabla.
+
+### 1.4.4.1 Contraste con el conteo manual físico
+
+La investigadora realizó su conteo del tercer lote **sobre las placas físicas**,
+no sobre las fotografías. Esa diferencia importa, y conviene declararla, porque
+con la placa en la mano se puede inclinar, mirar a contraluz y apreciar relieve
+y textura, de modo que se distinguen colonias pálidas o pequeñas que una
+fotografía plana de un solo ángulo no recoge. Por lo tanto, la comparación que
+sigue no mide solo el error del algoritmo, sino la suma de lo que pierde la
+fotografía y lo que pierde el algoritmo.
+
+| Placa | Conteo físico | Sistema | Error | Relativo |
+|-------|--------------:|--------:|------:|---------:|
+| RC73-1 | 31 | 21 | −10 | −32 % |
+| RC73-2 | 40 | 30 | −10 | −25 % |
+| RC73-3 | 33 | 24 | −9 | −27 % |
+| RC73-4 | 29 | 21 | −8 | −28 % |
+| RC73-5 | 37 | 25 | −12 | −32 % |
+| RC73-6 | 21 | 12 | −9 | −43 % |
+| RC73-7 | 16 | 15 | −1 | −6 % |
+| RC73-8 | 10 | 6 | −4 | −40 % |
+| RC73-9 | 23 | 19 | −4 | −17 % |
+| RC73-10 | 25 | 21 | −4 | −16 % |
+| **Total** | **265** | **194** | **−71** | **−27 %** |
+
+El sistema queda por debajo en **las diez placas, sin excepción**, con un acierto
+agregado del 73,2 %. El déficit crece con el número de colonias de la placa, con
+una correlación de 0,76, de modo que es aproximadamente proporcional y no un
+descuento fijo.
+
+**Una causa concreta y medible.** Casi una quinta parte de la placa no se examina
+siquiera, porque el recorte al 92 % del radio descarta el 15,4 % del área y la
+exclusión de la rotulación del borde retira otro 2,5 %, lo que suma un 17,9 %.
+Si las colonias se repartieran de forma uniforme sobre la placa, en esa franja
+caerían unas 47 de las 71 colonias que faltan, es decir el 66 % del déficit.
+
+Conviene ser preciso sobre el alcance de ese cálculo. Las colonias **no** se
+reparten de forma uniforme, y de hecho, medido sobre las coordenadas del primer
+lote, el recorte al 92 % capturaba el 96 % de las colonias marcadas y no el
+85 % que predice el reparto uniforme. La cifra del 66 % es por tanto una cota
+superior y no una medición, y el valor real solo puede obtenerse con las
+coordenadas de las colonias sobre las fotografías del tercer lote.
+
+**Lo que no se hace, y por qué.** Sería posible ampliar el radio de recorte hasta
+que el total coincidiera con las 265 colonias del conteo físico, y eso produciría
+de inmediato una cifra de acierto muy superior. No se hace, porque equivaldría a
+ajustar un parámetro contra la respuesta, que es justamente la práctica que este
+trabajo critica en la sección 1.4.2, y porque invalidaría el protocolo de prueba
+a ciegas bajo el que se desarrolló este lote. El radio de recorte debe fijarse
+con la curva de recuperación sobre las coordenadas, como se hizo con el primer
+lote, y el valor que resulte será el que se informe.
+
 ### 1.4.5 Resultados negativos documentados
 
 El desarrollo produjo varios resultados negativos, y conviene presentarlos porque delimitan lo que el sistema puede hacer y porque sostienen la credibilidad de los resultados positivos. Dos de ellos merecen mención detallada.
