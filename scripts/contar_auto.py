@@ -41,7 +41,27 @@ sys.path.insert(0, str(Path(__file__).parent))
 from contar_mis_fotos import (
     detect_plate, crop_plate, flat_field, draw_overlay, scout, is_ink,
     MIN_COLONY_AREA, MAX_COLONY_AREA, MIN_SOLIDITY, SUPPORTED,
+    SHRINK, MAX_CROP_DIM,
 )
+
+
+def transformacion_recorte(img_bgr, cx, cy, r, shrink=SHRINK):
+    """
+    Desplazamiento y escala que lleva del recorte a la fotografia original.
+
+    Repite la aritmetica de crop_plate en lugar de cambiar su firma, porque esa
+    funcion la usan varios scripts y anadirle valores de retorno los romperia.
+    Una coordenada (xc, yc) del recorte corresponde a (x0 + xc / escala,
+    y0 + yc / escala) en la imagen original.
+    """
+    r_use = int(r * shrink)
+    x0 = max(0, cx - r_use)
+    y0 = max(0, cy - r_use)
+    x1 = min(img_bgr.shape[1], cx + r_use)
+    y1 = min(img_bgr.shape[0], cy + r_use)
+    largo = max(y1 - y0, x1 - x0)
+    escala = MAX_CROP_DIM / largo if largo > MAX_CROP_DIM else 1.0
+    return x0, y0, escala
 from autocalibrar import calibrar, es_tinta
 from quitar_rotulacion import limpiar_rotulacion
 from preproceso_fisico import densidad_optica
@@ -172,6 +192,20 @@ def main():
         print(linea)
         filas.append(fila)
         pd.DataFrame(filas).to_csv(salida / 'summary.csv', index=False)
+
+        # Coordenadas de cada deteccion, devueltas al marco de la fotografia
+        # original. Sin esto solo se puede comparar el total contra el conteo
+        # manual, y un total que coincide puede estar compuesto de una colonia
+        # perdida y un falso positivo que se compensan. Con las coordenadas se
+        # puede decir cual colonia se perdio y donde sobro una.
+        x0, y0, escala = transformacion_recorte(img, cx, cy, r)
+        pd.DataFrame([
+            {'x': x0 + p.centroid[1] / escala,
+             'y': y0 + p.centroid[0] / escala,
+             'area_recorte': p.area,
+             'radio_original': float(np.sqrt(p.area / np.pi)) / escala}
+            for p in validas
+        ]).to_csv(salida / f'{ruta.stem}_detecciones.csv', index=False)
 
         fig, axes = plt.subplots(1, 3, figsize=(17, 6))
         fig.suptitle(f'{ruta.name}   umbral {par["umbral"]:.2f}, '
