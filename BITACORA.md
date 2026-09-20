@@ -734,6 +734,62 @@ las placas incontables caen bajo ese umbral.
 > ralas. Si el resultado sale al revés, el razonamiento físico sobre la
 > reducción de escala es incorrecto y hay que abandonarlo.
 
+### Dos errores encontrados al salir del laboratorio propio
+
+Ninguno de los dos se habría visto nunca con las fotografías propias, y los dos
+aparecieron al primer contacto con placas ajenas. Son la mejor ilustración
+posible de lo que este trabajo sostiene.
+
+**Primero, el tono tratado como número y no como ángulo.** El matiz es un
+ángulo, y en la escala de OpenCV, que va de 0 a 179, el valor 179 está pegado al
+0. Los agares de sangre de ADBC tienen su tono en 177 a 179, justo en esa
+costura. Una colonia de tono 2 dista 4 grados del agar de tono 178, pero la
+resta directa da 176, de modo que el filtro la tomaba por rotulación y **la
+borraba en silencio**. En las fotografías propias no se manifestó nunca porque
+su agar está en 41 a 56, lejos de la costura.
+
+Corregirlo tuvo más recorrido del esperado, porque las dos salidas obvias
+fallan, y ambas se comprobaron antes de adoptar nada:
+
+| Estimador del tono del agar | Qué rompe |
+|-----------------------------|-----------|
+| Mediana | Da 90, un verde inexistente, si el agar cruza la costura |
+| Moda circular | Los píxeles grises tienen tono 0 por convenio y se amontonan: una placa propia con zona oscura daba 0 frente a 46 |
+| Moda ponderada por saturación | Una región pequeña e intensa gana a un agar grande y pálido: una placa doble daba 21, un naranja, frente a 87 |
+| **Descartar donde el tono no está definido y contar por área** | Nada. Es el que quedó |
+
+Comprobado sobre veinte placas de cuatro procedencias: coincide con la mediana
+dentro de un grado en todas las placas propias, y dentro de un mismo montaje es
+**más consistente** que ella, con 8 grados de dispersión frente a 23, que es lo
+que debe ocurrir si las placas se fotografiaron igual.
+
+**Segundo, el área mínima fijada en píxeles.** El pipeline exigía 300 px², que
+traducido a unidades reales significa exigir que una colonia mida 1,35 mm.
+Medido sobre las anotaciones de ADBC:
+
+| Tramo de densidad | Colonias anotadas | Bajo el filtro de 300 px² |
+|-------------------|------------------:|--------------------------:|
+| 1 a 10 | 185 | 17,3 % |
+| 11 a 30 | 1.014 | 2,1 % |
+| 31 a 60 | 2.252 | 5,0 % |
+| 61 a 150 | 11.160 | 8,2 % |
+| 151 a 250 | 10.532 | 22,9 % |
+| Más de 250 | 31.722 | **40,6 %** |
+
+En total se habría descartado el 28,8 % de las colonias anotadas, de modo que la
+validación externa habría medido el filtro y no el detector. Es el **cuarto caso
+del mismo patrón**, junto al estimador de densidad, el filtro de color y el
+umbral de detección: una constante fijada para un montaje concreto.
+
+La corrección es la misma que en los otros tres, poner la regla en unidades que
+signifiquen algo fuera de ese montaje. Como el recorte se lleva siempre a un
+lado fijo y abarca una fracción conocida de una placa normalizada de 90 mm, la
+escala se deduce sin calibrar nada. El mínimo se declara ahora en milímetros.
+
+El evaluador guarda además el área de cada detección y no solo el recuento, de
+modo que ese umbral se puede mover después sin volver a ejecutar el modelo, y la
+sensibilidad a él se informa junto al resultado en lugar de quedar escondida.
+
 ### Limitación de cómputo
 
 No hay GPU disponible, y CellSAM sobre procesador tarda del orden de minutos por

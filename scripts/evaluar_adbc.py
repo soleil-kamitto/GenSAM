@@ -90,8 +90,19 @@ def muestra(por_tramo):
         if not len(s):
             continue
         n = min(por_tramo, len(s))
-        partes.append(s.iloc[rng.choice(len(s), n, replace=False)])
-    return pd.concat(partes).sort_values('colonias').reset_index(drop=True)
+        s = s.iloc[rng.choice(len(s), n, replace=False)].copy()
+        s['turno'] = range(len(s))
+        partes.append(s)
+
+    # Se alternan los tramos en lugar de ordenar por densidad. Sobre procesador
+    # una corrida completa lleva horas, y si hubiera que interrumpirla con un
+    # orden creciente solo quedarian medidas las placas ralas, que son justo las
+    # que no ponen a prueba la hipotesis. Alternando, cualquier corte deja una
+    # muestra repartida por todo el rango.
+    return (pd.concat(partes)
+            .sort_values(['turno', 'colonias'])
+            .drop(columns='turno')
+            .reset_index(drop=True))
 
 
 def contar(model, ruta, usar_mosaico):
