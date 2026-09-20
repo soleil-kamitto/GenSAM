@@ -44,8 +44,19 @@ import numpy as np
 from PIL import Image
 
 SUPPORTED = {'.jpg', '.jpeg', '.png', '.tif', '.tiff', '.bmp'}
+# La carpeta de salida se deriva del nombre de la carpeta de imagenes. Estaba
+# fija, y con ella contar un lote nuevo sobrescribia el resumen del anterior,
+# porque ground_truth.csv se reescribe entero con las placas de la carpeta
+# actual. Para images/mis_fotos el resultado es la misma ruta de siempre, de
+# modo que los conteos ya hechos siguen donde estaban.
 OUT_DIR = Path('results/ground_truth_mis_fotos')
 IMG_DIR = OUT_DIR / 'imagenes'
+
+
+def _fijar_salida(images_dir):
+    global OUT_DIR, IMG_DIR
+    OUT_DIR = Path('results') / f'ground_truth_{Path(images_dir).name}'
+    IMG_DIR = OUT_DIR / 'imagenes'
 
 
 class Contador:
@@ -205,6 +216,7 @@ class Contador:
 
 def main():
     images_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('images/mis_fotos')
+    _fijar_salida(images_dir)
     imagenes = sorted(p for p in images_dir.iterdir()
                       if p.suffix.lower() in SUPPORTED)
     if not imagenes:
