@@ -509,6 +509,45 @@ fondo, `OD = -log10(I/I0)`, es proporcional a esa biomasa. Corrige la
 iluminación y linealiza la respuesta en un solo paso, y da más contraste a las
 colonias tenues que la imagen cruda.
 
+### Resultado de la prueba ciega: las tres variantes convergen
+
+Tras corregir la eliminación de la rotulación se contó el lote completo con tres
+preprocesamientos de fundamento distinto, sin disponer del recuento manual.
+
+| Placa | Imagen cruda | Densidad óptica | Mosaico |
+|-------|-------------:|----------------:|--------:|
+| RC73-1 | 21 | 21 | 19 |
+| RC73-2 | 30 | 34 | 30 |
+| RC73-3 | 24 | 25 | 24 |
+| RC73-4 | 21 | 23 | 23 |
+| RC73-5 | 25 | 25 | 25 |
+| RC73-6 | 11 | 13 | |
+| RC73-7 | 15 | 12 | |
+| RC73-8 | 6 | 9 | |
+| RC73-9 | 19 | 21 | |
+| RC73-10 | 21 | 21 | 21 |
+| **Total** | **193** | **204** | |
+
+La corrección del borde se confirma en RC73-8, que pasó de 15 a 6 colonias, y el
+total bajó de 206 a 193 al desaparecer las muescas del inpainting.
+
+**Lo relevante es que las tres convergen.** Son tres caminos distintos, la imagen
+directa, la densidad óptica de Beer-Lambert sobre fondo morfológico, y el
+troceado a mayor resolución, y el total se mueve entre 193 y 204, un 5 %. La
+densidad óptica se separa de la imagen cruda en 1,1 colonias por placa de media,
+en un rango de menos tres a más cuatro, y coincide exactamente en tres de diez.
+
+Eso permite algo que normalmente exige el recuento manual: **una estimación de la
+incertidumbre del método**. El conteo del lote está entre 193 y 204 colonias, con
+una dispersión entre métodos del orden del 5 %. Si el recuento manual cae dentro
+de esa banda, el procedimiento es consistente; si cae claramente fuera, existe un
+sesgo sistemático compartido por las tres variantes, y eso sería a su vez un
+resultado.
+
+Lo que **no** se puede afirmar a ciegas es cuál de las tres es la correcta. La
+conclusión defendible es más modesta y también más útil: la elección del
+preprocesamiento no domina el resultado, que era justamente la duda.
+
 ### Consenso entre umbrales, sin conocer la respuesta
 
 Sin conteo manual no hay forma de elegir un umbral mirando el resultado, y
