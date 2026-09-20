@@ -25,6 +25,7 @@ Uso:
 """
 import argparse
 import sys
+import time
 import warnings
 from pathlib import Path
 
@@ -99,9 +100,24 @@ def muestra(por_tramo):
     # orden creciente solo quedarian medidas las placas ralas, que son justo las
     # que no ponen a prueba la hipotesis. Alternando, cualquier corte deja una
     # muestra repartida por todo el rango.
-    return (pd.concat(partes)
-            .sort_values(['turno', 'colonias'])
-            .drop(columns='turno')
+    todas = pd.concat(partes)
+
+    # Las placas incontables van al final. Medido sobre este mismo conjunto, una
+    # placa de 147 colonias tarda unos doce minutos sobre procesador mientras
+    # que una de 585 pasa de las dos horas, porque el costo del decodificador de
+    # mascaras crece con el numero de regiones propuestas. Dejarlas para el
+    # final permite tener medido todo el rango contable, que es el alcance
+    # declarado del sistema, antes de invertir horas en placas que la
+    # microbiologia convencional registra como incontables de todos modos.
+    #
+    # El propio dato es un resultado: un laboratorio sin unidad de procesamiento
+    # grafico no puede analizar placas incontables en tiempo util, de modo que
+    # el limite de 250 colonias no es solo una convencion sino tambien una
+    # restriccion practica.
+    todas['incontable'] = todas.colonias > TRAMOS[-1][0]
+    return (todas
+            .sort_values(['incontable', 'turno', 'colonias'])
+            .drop(columns=['turno', 'incontable'])
             .reset_index(drop=True))
 
 
@@ -261,8 +277,9 @@ def main():
         if hechas:
             print(f'Se reanudan {len(hechas)} placas ya medidas.')
 
-    print(f'{"placa":<18} {"tramo":<9} {"real":>6} {"contado":>8} {"error":>7}')
-    print('-' * 52)
+    print(f'{"placa":<18} {"tramo":<9} {"real":>6} {"contado":>8} '
+          f'{"error":>7} {"tiempo":>11}')
+    print('-' * 64)
     for _, f in sel.iterrows():
         if f.image_name in hechas:
             continue
@@ -271,15 +288,21 @@ def main():
             filas.append({**f.to_dict(), 'contado': None,
                           'estado': 'imagen no descargada'})
             continue
+        # se mide el tiempo porque el costo por placa crece mucho con la
+        # densidad, y para un laboratorio sin GPU eso decide si el sistema es
+        # utilizable o no
+        t0 = time.monotonic()
         props, estado = contar(model, ruta, args.mosaico)
+        segundos = time.monotonic() - t0
         n = sum(1 for a in props if a >= piso)
         filas.append({**f.to_dict(), 'contado': n, 'estado': estado,
-                      'detectadas_sin_piso': len(props)})
+                      'detectadas_sin_piso': len(props),
+                      'segundos': round(segundos, 1)})
         for a in props:
             areas.append({'image_name': f.image_name, 'area': a})
         if estado == 'ok':
             print(f'{f.image_name:<18} {f.tramo:<9} {f.colonias:>6} '
-                  f'{n:>8} {n - f.colonias:>+7}')
+                  f'{n:>8} {n - f.colonias:>+7} {segundos / 60:>7.1f} min')
         else:
             print(f'{f.image_name:<18} {f.tramo:<9} {f.colonias:>6} '
                   f'{"-":>8}  {estado}')
