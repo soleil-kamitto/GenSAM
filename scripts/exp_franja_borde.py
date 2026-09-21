@@ -133,6 +133,12 @@ def main():
                       'oscuridad_mediana_franja': None if np.isnan(o_med)
                       else round(o_med, 3)})
 
+        # se guarda despues de cada placa y no al final. Una corrida de estas
+        # dura decenas de minutos, y guardar solo al terminar significa perderlo
+        # todo si el proceso se corta, cosa que ocurrio.
+        pd.DataFrame(filas).to_csv(SALIDA / 'franja_por_placa.csv', index=False)
+        pd.DataFrame(detalle).to_csv(SALIDA / 'franja_detalle.csv', index=False)
+
     df = pd.DataFrame(filas)
     df.to_csv(SALIDA / 'franja_por_placa.csv', index=False)
     pd.DataFrame(detalle).to_csv(SALIDA / 'franja_detalle.csv', index=False)
