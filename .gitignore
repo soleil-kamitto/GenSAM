@@ -83,3 +83,6 @@ yolov8n.pt
 # artefactos de Windows y borradores del capitulo fuera de docs/
 desktop.ini
 Draft*.docx
+
+# informes generados, se rehacen con scripts/informe_lote3_pdf.py
+docs/*.pdf

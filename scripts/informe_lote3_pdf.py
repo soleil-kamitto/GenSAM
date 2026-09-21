@@ -353,10 +353,13 @@ def pagina_placa(pdf, nombre, numero):
     fig.add_artist(plt.Line2D([MARGEN, 1 - MARGEN], [1 - MARGEN - 0.022,
                               1 - MARGEN - 0.022], color='black', lw=0.8))
 
+    # Las filas arrancan por debajo de la linea del encabezado. Con valores mas
+    # altos, el titulo de la primera fila de paneles se montaba sobre el nombre
+    # de la placa y sobre las cifras de la derecha.
     paneles = []
-    ancho, alto = 0.385, 0.255
+    ancho, alto = 0.385, 0.232
     x0, x1 = MARGEN, MARGEN + 0.425
-    ys = [0.665, 0.375, 0.085]
+    ys = [0.615, 0.345, 0.075]
     for y in ys:
         paneles.append((x0, y)); paneles.append((x1, y))
 
