@@ -214,6 +214,16 @@ def main():
             for p in validas
         ]).to_csv(salida / f'{ruta.stem}_detecciones.csv', index=False)
 
+        # Se guardan las imagenes intermedias del proceso. Sirven para mostrar
+        # graficamente el pipeline placa por placa en el informe, y para poder
+        # revisar despues en que paso se perdio una colonia sin volver a
+        # ejecutar el modelo, que cuesta minutos por placa.
+        np.savez_compressed(salida / f'{ruta.stem}_pasos.npz',
+                            recorte=crop, mascara_placa=mascara,
+                            entrada=entrada, etiquetas=seg.astype(np.int32),
+                            validas=np.array([p.label for p in validas],
+                                             dtype=np.int32))
+
         fig, axes = plt.subplots(1, 3, figsize=(17, 6))
         fig.suptitle(f'{ruta.name}   umbral {par["umbral"]:.2f}, '
                      f'flat-field {"si" if par["aplicar_flat"] else "no"}',
