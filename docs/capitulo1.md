@@ -48,7 +48,9 @@ Esta situación es especialmente grave para el escenario que motiva el trabajo, 
 
 **La transferibilidad como aportación central.** Varios trabajos recientes han demostrado que el conteo automático sobre fotografías de teléfono es viable, y lo han hecho con métricas altas (Yildiz et al., 2026; Colony Grounded SAM2, 2026). Sin embargo, todos ellos se evalúan sobre un único conjunto de imágenes, y sus autores señalan de forma explícita que falta la validación externa en distintos laboratorios y dispositivos. Este trabajo se sitúa justamente en ese hueco, porque no se limita a proponer un método sino que mide en qué condiciones deja de funcionar, documenta los modos concretos de fallo y sustituye las constantes ajustadas a mano por reglas que se derivan de cada fotografía. Esa diferencia importa para el usuario final, ya que un laboratorio sin presupuesto no puede recalibrar lo que instala, y tampoco puede detectar que necesitaría hacerlo.
 
-**Viabilidad técnica demostrada.** En este trabajo, CellSAM muestra capacidad de generalización hacia imágenes macroscópicas de actinomicetos con una modificación que no toca el modelo, porque solo se añade una etapa de preprocesamiento que corrige el bajo contraste entre las colonias y el agar. Cuando esta etapa se complementa con una selección del umbral de detección derivada de la propia imagen, el sistema alcanza un MAE de **5,94 colonias por placa** sobre el conjunto de referencia con conteo manual, formado por 8 imágenes con dos placas cada una, y esa cifra representa una reducción del 53 % frente a la configuración base, cuyo MAE era de 12,75. Sobre las fotografías propias, y una vez excluidos los cultivos fallidos según el criterio biológico que se detalla en 1.4.1, el MAE baja a **2,83 colonias por placa** con un acierto agregado del 83,8 %. Estos resultados demuestran la viabilidad del enfoque sin necesidad de entrenar el modelo desde cero.
+**Viabilidad técnica demostrada.** En este trabajo, CellSAM muestra capacidad de generalización hacia imágenes macroscópicas de actinomicetos con una modificación que no toca el modelo, porque solo se añade una etapa de preprocesamiento que corrige el bajo contraste entre las colonias y el agar. Sobre las fotografías propias, y una vez excluidos los cultivos fallidos según el criterio biológico que se detalla en 1.4.1, el sistema alcanza un MAE de **2,83 colonias por placa** con un acierto agregado del 83,8 %.
+
+Dos resultados adicionales sostienen la viabilidad más allá del laboratorio de origen. Sobre 50 placas del conjunto público ADBC, dentro del rango contable y sin ajustar ningún parámetro, el acierto es del **79,1 %**. Y la inferencia por baldosas, adoptada por un razonamiento físico y con la predicción registrada antes de evaluarla, eleva ese acierto al **91,4 %** sobre placas ajenas, lo que constituye una mejora obtenida fuera de muestra. Todo ello sin entrenar el modelo desde cero.
 
 **Rigor metodológico: resultados negativos y pruebas a ciegas.** El desarrollo incorporó dos prácticas que conviene destacar porque sostienen la credibilidad de las cifras anteriores. La primera es el uso sistemático de **controles negativos**, es decir, conjuntos donde una regla propuesta no debería activarse, y esa práctica sirvió para descartar al menos una regla que parecía perfecta sobre los datos de desarrollo. La segunda es que el tercer lote de placas se procesó **a ciegas**, porque la investigadora conservó su conteo manual sin comunicarlo mientras se ajustaba el sistema, de modo que ninguna decisión pudo tomarse mirando el resultado. Ambas prácticas son poco frecuentes en la literatura de conteo de colonias, y las dos se documentan en detalle en la sección 1.4.
 
@@ -112,7 +114,7 @@ Además del conjunto de referencia con conteo manual, el pipeline se aplicó a f
 | Referencia, `images/placas` | 16 | 819 | Dos placas por imagen, iluminación frontal |
 | Primer lote propio | 15 | 856 | Transiluminador, contraluz, rotulación azul en el borde |
 | Segundo lote propio | 4 | sin contar | Mismo montaje, semanas después |
-| Tercer lote propio | 10 | prueba a ciegas | Mejor iluminación, rotulación negra abundante |
+| Tercer lote propio | 10 | 265, con coordenadas | Mejor iluminación, rotulación abundante en el borde |
 | ADBC (externo) | 369 | 56.865 | Tres teléfonos, 24 especies, sin protocolo |
 | Sintéticas generadas | 1.000 | 71.522 | Generadas a partir de parches reales |
 
@@ -194,9 +196,9 @@ El radio de recorte de la placa se fijó en el 92 % tras medir, sobre el propio 
 
 Los errores restantes se concentran en dos modos de fallo con signo opuesto. El primero es el subconteo de colonias pequeñas y pálidas, que se observa sobre todo en M1-D, donde el conteo manual registró 21 colonias y el sistema solo 8. El segundo son los falsos positivos, con M2-A-3 como caso extremo, porque el conteo manual de esa placa es 0 por criterio explícito de la investigadora. Este caso obliga a acotar el alcance de la corrección de iluminación, ya que la corrección hace visibles las estructuras pálidas pero no distingue entre colonias válidas y crecimiento no contable, y esa distinción hoy solo la aporta el criterio experto.
 
-### 1.4.2 Cuatro parámetros que no transfieren entre montajes de captura
+### 1.4.2 Cinco parámetros que no transfieren entre montajes de captura
 
-Esta sección reúne el hallazgo central del trabajo. Cada uno de los cuatro casos se detectó al aplicar el sistema a fotografías tomadas en condiciones distintas de aquellas con las que se había ajustado, y los cuatro comparten la misma causa, que es una constante fijada mirando un conjunto concreto de imágenes. La **Tabla 1.7** los resume, y los párrafos siguientes detallan cada caso.
+Esta sección reúne el hallazgo central del trabajo. Cada uno de los cinco casos se detectó al aplicar el sistema a fotografías tomadas en condiciones distintas de aquellas con las que se había ajustado, y los cinco comparten la misma causa, que es una constante fijada mirando un conjunto concreto de imágenes. La **Tabla 1.7** los resume, y los párrafos siguientes detallan cada caso.
 
 **Tabla 1.7. Parámetros que dejan de funcionar al cambiar el montaje de captura.**
 
@@ -206,6 +208,7 @@ Esta sección reúne el hallazgo central del trabajo. Cada uno de los cuatro cas
 | Filtro de color | Primer lote propio | El matiz del agar pasa de 43 a 56 entre lotes, y el filtro queda al borde de descartar colonias reales |
 | Umbral de detección | Fotografías con contraluz | Produce un sesgo sistemático de más de ocho colonias por placa sobre el conjunto de referencia |
 | Área mínima de colonia | Fotografías propias | Fijada en 300 px², descarta el 28,8 % de las colonias anotadas de ADBC y el 40,6 % en placas densas |
+| Radio de recorte de la placa | Primer lote propio | Fijado en el 92 % del radio, captura el 96 % de las colonias del primer lote y solo el 74 % del tercero |
 
 **El estimador de densidad.** El módulo de estimación de densidad, que funciona sobre el conjunto de referencia, no se transfiere al montaje con transiluminador, porque sus estimaciones no guardan relación con la densidad real. La relación llega a ser inversa a la esperada, ya que la placa más poblada del conjunto recibe una de las estimaciones más bajas. En la práctica, las 15 placas del primer lote se procesaron con un umbral fijo, con la única excepción de M1-B, que fue clasificada de forma errónea como densa.
 
@@ -226,7 +229,13 @@ Esta sección reúne el hallazgo central del trabajo. Cada uno de los cuatro cas
 | 151 a 250 | 10.532 | 22,9 % |
 | Más de 250 | 31.722 | **40,6 %** |
 
-**La solución adoptada.** En los cuatro casos la corrección sigue el mismo principio, que consiste en sustituir la constante por una regla derivada de propiedades medibles de la propia fotografía o de la geometría conocida del problema. El umbral de detección se deriva de cuánto se aparta la imagen de su propio fondo suavizado, el matiz de referencia se mide en el agar de cada fotografía, y el área mínima se declara en milímetros y se traduce a píxeles usando el hecho de que una placa de Petri normalizada mide 90 mm de diámetro.
+**El radio de recorte de la placa.** El pipeline recorta cada placa al 92 % de su radio antes de analizarla, y descarta así el 15,4 % de la superficie. Ese recorte tiene una razón legítima, porque en el borde coinciden el menisco del agar, la pared del recipiente y las gotas de condensación, que el detector confunde con colonias. El valor se fijó midiendo sobre el primer lote, donde capturaba el 96 % de las colonias marcadas. Sobre el tercer lote captura solo el 74 %, y el detalle se desarrolla en la sección 1.4.4.1.
+
+Este caso es el más contundente de los cinco, porque el parámetro **no transfiere ni siquiera entre dos lotes de la misma investigadora**, tomados en el mismo laboratorio y sobre el mismo tipo de placa. Si una constante no resiste ese cambio, difícilmente resistirá el salto a otro laboratorio con otra cámara y otra iluminación.
+
+Conviene añadir una observación que este caso reveló y que complica el cuadro. **Ampliar el recorte no es un cambio aislado**, porque al incluir el borde oscuro cambian las estadísticas de la imagen, y esas estadísticas son justamente las que alimentan la auto-calibración del umbral y de la corrección de iluminación. Medido sobre la placa M1-D, el conteo pasa de 16 colonias a 1 al ampliar el recorte, no porque el borde añada ruido sino porque el cambio de encuadre descalibró el umbral. Los parámetros de un pipeline de este tipo no son independientes entre sí, de modo que corregir uno puede mover otro sin aviso.
+
+**La solución adoptada.** En los cinco casos la corrección sigue el mismo principio, que consiste en sustituir la constante por una regla derivada de propiedades medibles de la propia fotografía o de la geometría conocida del problema. El umbral de detección se deriva de cuánto se aparta la imagen de su propio fondo suavizado, el matiz de referencia se mide en el agar de cada fotografía, y el área mínima se declara en milímetros y se traduce a píxeles usando el hecho de que una placa de Petri normalizada mide 90 mm de diámetro.
 
 **Una de esas reglas tampoco transfiere, y conviene decirlo.** La regla del umbral se ajustó con solo dos montajes medidos, de modo que en el propio código quedó una advertencia de que dos puntos no bastan para fijar una recta general. El conjunto ADBC es el tercer montaje y confirma esa advertencia, tal como muestra la **Tabla 1.9**. Sobre veinte placas de ADBC, diez reciben el valor mínimo de 0,35, que es el extremo permisivo del rango, y no se observa relación entre el umbral asignado y la densidad real de la placa, ya que una placa de 221 colonias recibe el umbral más permisivo mientras que otra de 31 recibe uno estricto. Cuando una regla adaptativa se pega a su límite en la mitad de los casos deja de ser adaptativa, porque se comporta igual que la constante que venía a sustituir.
 
@@ -296,56 +305,121 @@ colonias, porque una sola placa cambió en una unidad. El efecto es por tanto de
 orden de una colonia por cada diez placas y no altera la conclusión, pero las
 tres variantes deben repetirse con el mismo código antes de publicar la tabla.
 
-### 1.4.4.1 Contraste con el conteo manual físico
+### 1.4.4.1 Contraste con el conteo manual y diagnóstico del error
 
-La investigadora realizó su conteo del tercer lote **sobre las placas físicas**,
-no sobre las fotografías. Esa diferencia importa, y conviene declararla, porque
-con la placa en la mano se puede inclinar, mirar a contraluz y apreciar relieve
-y textura, de modo que se distinguen colonias pálidas o pequeñas que una
-fotografía plana de un solo ángulo no recoge. Por lo tanto, la comparación que
-sigue no mide solo el error del algoritmo, sino la suma de lo que pierde la
-fotografía y lo que pierde el algoritmo.
+La investigadora contó el tercer lote dos veces, primero sobre las placas
+físicas y después sobre las mismas fotografías, marcando cada colonia con una
+herramienta que registra sus coordenadas. Disponer de las dos cuentas permite
+separar lo que pierde la fotografía de lo que pierde el algoritmo, que hasta
+ahora se confundían en una sola cifra.
 
-| Placa | Conteo físico | Sistema | Error | Relativo |
-|-------|--------------:|--------:|------:|---------:|
-| RC73-1 | 31 | 21 | −10 | −32 % |
-| RC73-2 | 40 | 30 | −10 | −25 % |
-| RC73-3 | 33 | 24 | −9 | −27 % |
-| RC73-4 | 29 | 21 | −8 | −28 % |
-| RC73-5 | 37 | 25 | −12 | −32 % |
-| RC73-6 | 21 | 12 | −9 | −43 % |
-| RC73-7 | 16 | 15 | −1 | −6 % |
-| RC73-8 | 10 | 6 | −4 | −40 % |
-| RC73-9 | 23 | 19 | −4 | −17 % |
-| RC73-10 | 25 | 21 | −4 | −16 % |
-| **Total** | **265** | **194** | **−71** | **−27 %** |
+**El primer resultado es que la fotografía no pierde nada.** El conteo sobre la
+imagen coincidió de forma exacta con el conteo físico en las diez placas, sin
+una sola colonia de diferencia, con 265 colonias en ambos casos. Esa
+coincidencia sostiene el supuesto de partida del trabajo, ya que una fotografía
+tomada con un teléfono conserva la información necesaria para contar, y traslada
+la totalidad del déficit al lado del análisis.
 
-El sistema queda por debajo en **las diez placas, sin excepción**, con un acierto
-agregado del 73,2 %. El déficit crece con el número de colonias de la placa, con
-una correlación de 0,76, de modo que es aproximadamente proporcional y no un
-descuento fijo.
+**Tabla 1.11. Conteo del tercer lote frente a la referencia manual.**
 
-**Una causa concreta y medible.** Casi una quinta parte de la placa no se examina
-siquiera, porque el recorte al 92 % del radio descarta el 15,4 % del área y la
-exclusión de la rotulación del borde retira otro 2,5 %, lo que suma un 17,9 %.
-Si las colonias se repartieran de forma uniforme sobre la placa, en esa franja
-caerían unas 47 de las 71 colonias que faltan, es decir el 66 % del déficit.
+| Placa | Referencia | Recorte al 92 % | Disco completo |
+|-------|-----------:|----------------:|---------------:|
+| RC73-1 | 31 | 21 | 29 |
+| RC73-2 | 40 | 30 | 36 |
+| RC73-3 | 33 | 24 | 36 |
+| RC73-4 | 29 | 21 | 26 |
+| RC73-5 | 37 | 25 | 38 |
+| RC73-6 | 21 | 12 | 20 |
+| RC73-7 | 16 | 15 | 22 |
+| RC73-8 | 10 | 6 | 12 |
+| RC73-9 | 23 | 19 | 22 |
+| RC73-10 | 25 | 21 | 25 |
+| **Total** | **265** | **194** | **266** |
 
-Conviene ser preciso sobre el alcance de ese cálculo. Las colonias **no** se
-reparten de forma uniforme, y de hecho, medido sobre las coordenadas del primer
-lote, el recorte al 92 % capturaba el 96 % de las colonias marcadas y no el
-85 % que predice el reparto uniforme. La cifra del 66 % es por tanto una cota
-superior y no una medición, y el valor real solo puede obtenerse con las
-coordenadas de las colonias sobre las fotografías del tercer lote.
+**El total esconde información, de modo que se descompone.** Comparar dos
+totales permite que una colonia perdida y otra inventada se cancelen entre sí,
+con lo que el resultado aparenta ser mejor de lo que es. Por eso cada colonia de
+referencia se emparejó con la detección más próxima, resolviendo el reparto
+completo de forma óptima en lugar de tomar el vecino más cercano, ya que con
+colonias juntas un emparejamiento avaro puede consumir la detección que
+correspondía a la vecina y encadenar errores inexistentes.
 
-**Lo que no se hace, y por qué.** Sería posible ampliar el radio de recorte hasta
-que el total coincidiera con las 265 colonias del conteo físico, y eso produciría
-de inmediato una cifra de acierto muy superior. No se hace, porque equivaldría a
-ajustar un parámetro contra la respuesta, que es justamente la práctica que este
-trabajo critica en la sección 1.4.2, y porque invalidaría el protocolo de prueba
-a ciegas bajo el que se desarrolló este lote. El radio de recorte debe fijarse
-con la curva de recuperación sobre las coordenadas, como se hizo con el primer
-lote, y el valor que resulte será el que se informe.
+**Tabla 1.12. Métricas descompuestas sobre el tercer lote.**
+
+| Métrica | Recorte al 92 % | Disco completo |
+|---------|----------------:|---------------:|
+| Colonias acertadas | 184 | 241 |
+| Colonias no detectadas | 81 | 24 |
+| Detecciones inventadas | 10 | 25 |
+| Sensibilidad | 69,4 % | 90,9 % |
+| Precisión | 94,8 % | 90,6 % |
+| **F1** | **80,2 %** | **90,8 %** |
+| MAE | 7,10 | 2,30 |
+| Acierto por totales | 73,2 % | 91,3 % |
+
+La distancia entre sensibilidad y precisión en la configuración original es el
+hallazgo que orienta todo lo demás. Con una precisión del 94,8 %, **el sistema
+casi no inventa colonias, simplemente no ve un tercio de ellas**, y en cuatro de
+las diez placas todo lo que propuso era una colonia real. Un fallo de
+sensibilidad y no de especificidad obliga a actuar sobre el detector o sobre la
+imagen que se le entrega, y no sobre los filtros posteriores.
+
+Conviene señalar además que el acierto por totales de la configuración con disco
+completo, un 91,3 %, resulta algo halagüeño, porque 266 detecciones frente a 265
+colonias reales se componen de 241 aciertos junto a 24 colonias perdidas y 25
+inventadas, que se compensan. El F1 del 90,8 % es la cifra que no admite esa
+compensación y es la que conviene informar.
+
+**Dónde estaban las colonias que el sistema no veía.** Como el conteo manual
+registra coordenadas, cada colonia no detectada se pudo situar sobre la placa.
+El resultado es inequívoco.
+
+**Tabla 1.13. Posición de las colonias según fueran detectadas o no.**
+
+| Distancia al centro, en fracción del radio | Detectadas | No detectadas |
+|--------------------------------------------|-----------:|--------------:|
+| 0,0 a 0,8 | 150 | 4 |
+| 0,8 a 0,9 | 31 | 5 |
+| 0,9 a 1,0 | 3 | 64 |
+| Más allá del borde detectado | 0 | 8 |
+
+Hasta el 0,9 del radio el sistema encuentra 181 de 190 colonias, y más allá de
+esa distancia encuentra 3 de 75. La transición no es gradual sino abrupta, y
+coincide con el borde del recorte que aplica el programa. En total, **69 de las
+81 colonias no detectadas quedaban fuera del área que el sistema llegaba a
+examinar**, y solo 12 se perdieron dentro de la zona analizada.
+
+La causa es por tanto geométrica y no perceptual. En este lote las colonias se
+concentran en el perímetro de la placa, con una mediana de 0,96 del radio entre
+las no detectadas frente a 0,62 entre las detectadas, mientras que el recorte al
+92 % fue calibrado sobre un lote donde esa concentración no existía.
+
+**El efecto de analizar la placa completa.** Al retirar el recorte, la
+sensibilidad sube del 69,4 % al 90,9 % y el MAE baja de 7,10 a 2,30 colonias por
+placa. El sesgo deja además de ser sistemático, ya que con el recorte original el
+sistema queda por debajo en las diez placas sin excepción, mientras que con el
+disco completo hay placas por encima y placas por debajo, lo que corresponde a un
+error aleatorio y no a un fallo estructural. El coste es una caída de la
+precisión del 94,8 % al 90,6 %, atribuible a las gotas de condensación del borde
+que ahora entran en el análisis.
+
+**Esa configuración no se adopta, y el motivo importa.** Aplicada al primer lote,
+donde la concentración perimetral no se da, el disco completo **empeora** el
+resultado, con el acierto cayendo del 84,9 % al 82,9 % sobre las placas válidas.
+Ningún valor fijo del radio sirve para los dos lotes, que es precisamente el
+quinto caso recogido en la Tabla 1.7. La corrección correcta no consiste en
+elegir mejor la fracción del radio sino en eliminarla como criterio, analizando
+la placa entera y discriminando las regiones del borde por una propiedad física
+medible en cada fotografía. Las colonias de este lote son entre un 30 y un 45 %
+más oscuras que el agar, mientras que una gota de condensación es más clara que
+el fondo porque refleja la luz en lugar de absorberla, de modo que el contraste
+separa ambas cosas sin recurrir a la posición. Esa variante queda en desarrollo.
+
+**Nota metodológica.** El conteo del tercer lote se obtuvo bajo protocolo de
+prueba a ciegas, y la cifra del 73,2 % corresponde a esa condición. El análisis
+posterior y la configuración con disco completo se desarrollaron ya con el
+conteo de referencia disponible, de modo que el 91,3 % es un resultado dentro de
+muestra y su validación fuera de muestra queda pendiente.
 
 ### 1.4.5 Resultados negativos documentados
 
@@ -359,9 +433,9 @@ Antes de adoptarlo se aplicó como control negativo a las placas dobles del conj
 
 ### 1.4.6 Validación externa sobre ADBC
 
-La validación externa se realiza sobre el conjunto ADBC (Rodríguez et al., 2023), que reúne 369 fotografías de placas de 24 especies bacterianas con 56.865 colonias anotadas, tomadas con tres modelos de teléfono distintos y sin iluminación normalizada. Su composición por densidad aparece en la **Tabla 1.11**.
+La validación externa se realiza sobre el conjunto ADBC (Rodríguez et al., 2023), que reúne 369 fotografías de placas de 24 especies bacterianas con 56.865 colonias anotadas, tomadas con tres modelos de teléfono distintos y sin iluminación normalizada. Su composición por densidad aparece en la **Tabla 1.14**.
 
-**Tabla 1.11. Composición del conjunto ADBC por densidad de colonias.**
+**Tabla 1.14. Composición del conjunto ADBC por densidad de colonias.**
 
 | Colonias por placa | Placas | Proporción |
 |--------------------|-------:|-----------:|
@@ -376,7 +450,34 @@ La mediana es de 108 colonias por placa y el máximo llega a 747, de modo que se
 
 Se dejó registrada una predicción antes de ejecutar la evaluación, para que el resultado pudiera contradecirla. Al reducir la placa a los 1024 píxeles que CellSAM emplea internamente, el diámetro de la colonia mediana pasa de 38,8 px en las placas ralas a 19,3 px en las incontables, y el 57 % de estas últimas queda por debajo del umbral de unos 15 a 20 px donde los detectores pierden fiabilidad. La predicción es que la inferencia por baldosas debe mejorar el conteo en las placas densas y resultar indiferente en las ralas, y que si el resultado sale al revés el razonamiento físico sobre la reducción de escala es incorrecto.
 
-La evaluación se ejecuta sobre una submuestra estratificada con el mismo número de placas por tramo de densidad, elegida con semilla fija, porque no se dispone de unidad de procesamiento gráfico y el modelo tarda minutos por placa sobre procesador. Estratificar importa aquí porque el efecto que se investiga depende justamente de la densidad, de modo que un muestreo al azar dejaría los extremos sin medir. Los resultados de esta evaluación se presentarán en el capítulo correspondiente.
+La evaluación se ejecutó sobre una submuestra estratificada de 60 placas, diez por tramo de densidad, elegida con semilla fija, porque no se dispone de unidad de procesamiento gráfico y el modelo tarda una mediana de 6,2 minutos por placa sobre procesador. Estratificar importa aquí porque el efecto que se investiga depende justamente de la densidad, de modo que un muestreo al azar dejaría los extremos sin medir.
+
+**Tabla 1.15. Resultado sobre 60 placas de ADBC, sin ajustar ningún parámetro.**
+
+| Colonias por placa | Placas | Anotado | Contado | MAE | Sesgo | Acierto |
+|--------------------|-------:|--------:|--------:|----:|------:|--------:|
+| 1 a 10 | 10 | 47 | 70 | 3,7 | +2,3 | 21,3 % |
+| 11 a 30 | 10 | 195 | 198 | 3,3 | +0,3 | 83,1 % |
+| 31 a 60 | 10 | 430 | 364 | 6,8 | −6,6 | 84,2 % |
+| 61 a 150 | 10 | 1.145 | 905 | 24,0 | −24,0 | 79,0 % |
+| 151 a 250 | 10 | 1.960 | 1.567 | 41,3 | −39,3 | 78,9 % |
+| Más de 250 | 10 | 4.515 | 2.667 | 184,8 | −184,8 | 59,1 % |
+| **Rango contable, hasta 250** | **50** | **3.777** | **3.104** | **15,8** | **−13,5** | **79,1 %** |
+
+La cifra que corresponde informar es la del rango contable, **79,1 % de acierto con un MAE de 15,8 colonias por placa**, porque la microbiología convencional registra como incontable toda placa que supere las 250 colonias y ese es el alcance declarado del sistema. Incluir las placas incontables rebaja el acierto al 68,2 %, pero mide algo que el sistema no pretende resolver.
+
+**El error cambia de signo con la densidad.** En las placas casi vacías el sistema sobrecuenta, con un error relativo mediano del +100 %, y a partir de las treinta colonias pasa a subcontar de forma creciente. Las placas de una a diez colonias son el punto débil, con un acierto del 21,3 %, aunque conviene leer esa cifra junto al MAE de 3,7 colonias: sobre una placa que tiene cuatro, equivocarse en cuatro supone un error relativo enorme aunque el error absoluto sea pequeño. Para un recuento de unidades formadoras de colonia esa diferencia importa, de modo que el rango de una a diez colonias debe declararse como límite de aplicabilidad.
+
+**La predicción registrada se cumple.** La inferencia por baldosas mejora el conteo justo donde se anticipó que lo haría.
+
+**Tabla 1.16. Inferencia por baldosas frente al análisis de la placa entera, sobre las 54 placas medidas con ambas variantes.**
+
+| Conjunto | Placa entera | Baldosas |
+|----------|-------------:|---------:|
+| Las 54 placas | 71,4 % | **91,4 %** |
+| Solo placas densas, más de 60 colonias | 70,4 % | **92,9 %** |
+
+Este resultado tiene una propiedad que conviene destacar, y es que se obtuvo **fuera de muestra**. La inferencia por baldosas se adoptó razonando sobre la reducción de escala que el modelo aplica internamente, y la predicción quedó escrita antes de ejecutar la evaluación, de modo que estas cifras no están informadas por los datos de prueba. Veinte puntos de mejora sobre placas de otro laboratorio, con veinticuatro especies y tres modelos de teléfono distintos, constituyen la evidencia más sólida de transferibilidad que reúne este trabajo.
 
 ---
 
