@@ -98,6 +98,10 @@ def main():
                     help='ejecutar tambien el pipeline de parametros fijos')
     ap.add_argument('--densidad-optica', action='store_true',
                     help='usar densidad optica como entrada al modelo')
+    ap.add_argument('--shrink', type=float, default=SHRINK,
+                    help='fraccion del radio que se analiza, por defecto '
+                         f'{SHRINK}; sirve para comprobar si ese valor '
+                         'transfiere entre montajes')
     args = ap.parse_args()
 
     origen = Path(args.imagenes)
@@ -108,6 +112,8 @@ def main():
     # Ocurrio con el tercer lote: la corrida de densidad optica sobrescribio la
     # de imagen directa, y solo se noto al revisar el CSV guardado.
     sufijo = '_auto_densidad_optica' if args.densidad_optica else '_auto'
+    if abs(args.shrink - SHRINK) > 1e-6:
+        sufijo += f'_shrink{args.shrink:.2f}'.replace('.', '')
     salida = Path('results/colonias') / f'{origen.name}{sufijo}'
     salida.mkdir(parents=True, exist_ok=True)
 
@@ -130,7 +136,7 @@ def main():
     for ruta in rutas:
         img = cv2.imread(str(ruta))
         cx, cy, r = detect_plate(img)
-        crop, mascara = crop_plate(img, cx, cy, r)
+        crop, mascara = crop_plate(img, cx, cy, r, shrink=args.shrink)
 
         par = calibrar(crop, mascara)
 
@@ -198,7 +204,8 @@ def main():
         # manual, y un total que coincide puede estar compuesto de una colonia
         # perdida y un falso positivo que se compensan. Con las coordenadas se
         # puede decir cual colonia se perdio y donde sobro una.
-        x0, y0, escala = transformacion_recorte(img, cx, cy, r)
+        x0, y0, escala = transformacion_recorte(img, cx, cy, r,
+                                                shrink=args.shrink)
         pd.DataFrame([
             {'x': x0 + p.centroid[1] / escala,
              'y': y0 + p.centroid[0] / escala,
