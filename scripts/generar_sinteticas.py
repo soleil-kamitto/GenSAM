@@ -223,11 +223,29 @@ def generar_una(fondos, parches, rng, densidad):
     # placa, y cada colonia cae cerca de un foco con dispersion aleatoria. Una
     # fraccion se siembra de forma uniforme, porque tampoco todas las colonias
     # forman grupos.
+    # Sesgo radial. Medido sobre las 1.122 colonias anotadas de los lotes
+    # propios, la distribucion radial cambia de forma sustancial entre lotes: en
+    # el anillo exterior, del 0,9 del radio hacia fuera, el primer lote tiene el
+    # 11 % de sus colonias y el tercero el 25 %, frente al 19 % que daria un
+    # reparto uniforme por area. Es decir, un lote tiene el borde empobrecido y
+    # el otro lo tiene enriquecido.
+    #
+    # Esa diferencia es la que hizo fallar el radio de recorte del pipeline, y
+    # una placa sintetica que solo reproduzca el reparto uniforme no prepara al
+    # modelo para ninguno de los dos casos reales. Se sortea por tanto un
+    # exponente que cubre el rango observado y algo mas.
+    #
+    # Con rad = R * u**(1/(2k)) la densidad por unidad de area va como r**(2k-2),
+    # de modo que k = 1 reproduce el reparto uniforme, k por debajo empobrece el
+    # borde y k por encima lo enriquece. Los valores medidos corresponden a
+    # k = 0,55 para el primer lote y k = 1,37 para el tercero.
+    sesgo_radial = rng.uniform(0.55, 1.45)
+
     n_focos = max(1, int(rng.uniform(2, 7)))
     focos = []
     for _ in range(n_focos):
         a = rng.uniform(0, 2 * np.pi)
-        d = radio_util * np.sqrt(rng.random())
+        d = radio_util * rng.random() ** (1.0 / (2.0 * sesgo_radial))
         focos.append((centro[0] + d * np.cos(a), centro[1] + d * np.sin(a)))
     dispersion = radio_util * rng.uniform(0.10, 0.35)
     frac_agrupada = rng.uniform(0.3, 0.85)
@@ -246,8 +264,7 @@ def generar_una(fondos, parches, rng, densidad):
                 continue
         else:
             ang = rng.uniform(0, 2 * np.pi)
-            # raiz cuadrada para repartir de forma uniforme por area, no por radio
-            rad = radio_util * np.sqrt(rng.random())
+            rad = radio_util * rng.random() ** (1.0 / (2.0 * sesgo_radial))
             cx = int(centro[0] + rad * np.cos(ang))
             cy = int(centro[1] + rad * np.sin(ang))
 
@@ -283,6 +300,92 @@ def generar_una(fondos, parches, rng, densidad):
             colocadas.append((cx, cy, r))
 
     return lienzo, colocadas
+
+
+# Colores de rotulador medidos sobre las fotografias propias, en BGR. El azul
+# y el negro son los que aparecen en los lotes disponibles; el rojo y el verde
+# se anaden porque son habituales en laboratorio y conviene que el modelo los
+# haya visto.
+TINTAS = [(150, 70, 30), (120, 55, 25),      # azules
+          (40, 38, 35), (55, 52, 48),        # negros
+          (45, 45, 160), (50, 120, 55)]      # rojo y verde
+
+
+def rotular(lienzo, mask, rng, colocadas):
+    """
+    Escribe sobre el plastico de la placa, como hace quien la siembra.
+
+    Por que importa. La rotulacion con marcador fue el obstaculo que mas trabajo
+    costo en las fotografias reales: en las placas mas escritas el detector
+    llegaba a proponer mas trazos que colonias, hasta 28 frente a 14, de modo
+    que sin tratarla el conteo se duplicaba. Un conjunto sintetico sin
+    rotulacion no prepara al modelo para eso, y ademas le ensena implicitamente
+    que todo lo que destaca sobre el agar es una colonia.
+
+    Los trazos no se anotan, porque no son colonias. Esa es justamente la
+    leccion que debe aprender el modelo. Las colonias que queden tapadas por la
+    escritura si se retiran de la anotacion, porque exigir que detecte lo que no
+    se ve seria ensenarle a inventar.
+
+    La escritura se coloca en el anillo exterior, que es donde se rotula en la
+    practica para no tapar el cultivo.
+    """
+    h, w = lienzo.shape[:2]
+    cx, cy = w / 2, h / 2
+    radio = min(h, w) / 2
+    tinta = TINTAS[rng.randrange(len(TINTAS))]
+    grosor = max(2, int(radio * rng.uniform(0.008, 0.018)))
+    capa = np.zeros((h, w), np.uint8)
+
+    n_palabras = rng.randrange(1, 4)
+    for _ in range(n_palabras):
+        # una palabra ocupa un arco del anillo exterior
+        ang0 = rng.uniform(0, 2 * np.pi)
+        r_texto = radio * rng.uniform(0.86, 0.97)
+        alto = radio * rng.uniform(0.05, 0.10)
+        n_signos = rng.randrange(3, 9)
+        paso = alto * 0.85 / r_texto          # separacion angular entre signos
+
+        for k in range(n_signos):
+            a = ang0 + k * paso
+            gx = cx + r_texto * np.cos(a)
+            gy = cy + r_texto * np.sin(a)
+            # cada signo es una polilinea corta, orientada de forma tangente al
+            # borde, que es como queda la escritura al girar la placa
+            n_pts = rng.randrange(3, 6)
+            pts = []
+            for _ in range(n_pts):
+                u = rng.uniform(-0.45, 0.45) * alto
+                v = rng.uniform(-0.5, 0.5) * alto
+                # rotar el desplazamiento para seguir la tangente
+                tx = -np.sin(a) * u - np.cos(a) * v
+                ty = np.cos(a) * u - np.sin(a) * v
+                pts.append([int(gx + tx), int(gy + ty)])
+            cv2.polylines(capa, [np.array(pts, np.int32)], False, 255,
+                          grosor, lineType=cv2.LINE_AA)
+
+    capa[mask == 0] = 0
+    if not capa.any():
+        return colocadas
+
+    # la tinta no es opaca del todo sobre el plastico, deja traslucir el agar
+    alfa = (capa.astype(np.float32) / 255.0 * rng.uniform(0.75, 0.95))[..., None]
+    color = np.array(tinta, np.float32)[None, None, :]
+    lienzo[:] = np.clip(lienzo * (1 - alfa) + color * alfa, 0, 255).astype(np.uint8)
+
+    # se retiran de la anotacion las colonias que la escritura tapa en buena
+    # parte, porque ya no son visibles y anotarlas ensenaria a inventarlas
+    quedan = []
+    for (qx, qy, qr) in colocadas:
+        y0, y1 = max(0, qy - qr), min(h, qy + qr)
+        x0, x1 = max(0, qx - qr), min(w, qx + qr)
+        if y1 <= y0 or x1 <= x0:
+            continue
+        trozo = capa[y0:y1, x0:x1]
+        if trozo.size and (trozo > 0).mean() > 0.35:
+            continue
+        quedan.append((qx, qy, qr))
+    return quedan
 
 
 def variar_captura(img, mask, rng):
@@ -357,6 +460,9 @@ def main():
     ap.add_argument('--max-densidad', type=int, default=320)
     ap.add_argument('--variar-captura', action='store_true',
                     help='simular distintos telefonos, luces y encuadres')
+    ap.add_argument('--rotulacion', type=float, default=0.6,
+                    help='fraccion de placas con rotulacion de marcador, '
+                         'entre 0 y 1')
     args = ap.parse_args()
 
     salida = Path(args.salida)
@@ -389,6 +495,15 @@ def main():
         densidad = int(np.exp(rng.uniform(np.log(args.min_densidad),
                                           np.log(args.max_densidad))))
         img, colocadas = generar_una(fondos, parches, rng, densidad)
+
+        # La rotulacion se escribe despues de sembrar y antes de simular la
+        # captura, que es el orden real: primero se siembra, luego se rotula el
+        # plastico y por ultimo alguien fotografia la placa.
+        if rng.random() < args.rotulacion:
+            mascara_placa = (cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) > 0
+                             ).astype(np.uint8)
+            colocadas = rotular(img, mascara_placa, rng, colocadas)
+
         if args.variar_captura:
             # la mascara de la placa es la del fondo usado; se recupera del
             # propio lienzo, donde lo exterior quedo en negro
